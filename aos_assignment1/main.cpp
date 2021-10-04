@@ -10,6 +10,8 @@
 #include<sys/stat.h>
 #include<pwd.h>
 #include<grp.h>
+#include<termios.h>
+#include<fcntl.h>
 using namespace std;
 
 //////////////////////////////// Global Variabble ////////////////////////////////////////////// 
@@ -17,12 +19,17 @@ using namespace std;
 char root[FILENAME_MAX];
 char current_directory[FILENAME_MAX];
 vector<string> files;
+stack<string> pevious;
+stack<string> next;
+int absolutePath;
 
 ///////////////////////////// Function Declaration ////////////////////////////////////////////
 
 void open_directory(char *path);
 void display();
 struct stat get_meta(char *file);
+string getfilename(string path);
+void copyfile(char *path, char *des);
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////// Main Function //////////////////////////////////////////
@@ -35,9 +42,13 @@ int main()
     }
     current_directory[sizeof(current_directory)-1]='\0';
     strcpy(root,current_directory);
+    char dest[]="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images";
+    char path[]="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/abc.txt";
+    //cout<<path<<endl<<dest;
+    copyfile(path,dest);
     //cout<<current_directory<<" ";
     //cout<<root<<endl;
-    open_directory(current_directory);
+    //open_directory(current_directory);
 }
 
 ///////////////////////////// Open Directory /////////////////////////////////////////////////
@@ -60,7 +71,7 @@ void open_directory(char *path)
     
     closedir(directory);
 
-    
+    int total_lines=files.size();
 
     display(); // displays all the directory in the cuurent directory
 
@@ -76,7 +87,7 @@ void display()
         strcpy(temp,files[i].c_str());
         temp[files[i].length()]='\0';
        
-
+        absolutePath=0;
         struct stat meta=get_meta(temp);
 
         //if directory
@@ -152,22 +163,106 @@ void display()
     //cin.get();
 }
 
-/////////////////////////////////// Gets all the meta data about the ///////////////////////////
+/////////////////////////////////// Gets all the meta data about the file ///////////////////////////
 
 struct stat get_meta(char *file)
 {
     struct stat meta;
     char cwd[FILENAME_MAX];
-    
-    strcpy(cwd,current_directory);
-    strcat(cwd,"/");
-    strcat(cwd,file);
+    char path[FILENAME_MAX];
+    if(absolutePath==0)
+    {
+        strcpy(cwd,current_directory);
+        strcat(cwd,"/");
+        strcat(cwd,file);
+        strcpy(path,cwd);
+    }
+    else
+        strcpy(path,file);
     //cout<<cwd<<endl;
-    
-    if(stat(cwd,&meta)==-1)
+    //cout<<path;
+    if(stat(path,&meta)==-1)
     {
         perror("Error in stat");
     }
 
     return meta;
 };
+
+/////////////////////////// Teriminal Window Cursor Handling////////////////////////////////////
+
+
+
+///////////////////////////////// Get file name ////////////////////////////////////////////////
+
+string getfilename(string path)
+{
+    int n=path.length();
+    for(int i=n;i>=0;i--)
+    {
+        if(path[i]=='/')
+            return path.substr(i+1);
+    }
+    return path;
+}
+
+
+/////////////////////////// Copy Files ////////////////////////////////////////////////////////
+
+void copyfile(char *path, char *des)
+{
+    absolutePath=1;
+    //cout<<des;
+    char cwd[FILENAME_MAX];
+    
+    if(path[0]!='/')
+    {
+        if(path[0]=='.')
+            path++;
+        strcpy(cwd,current_directory);
+        strcat(cwd,"/");
+        strcat(cwd,path);
+        strcpy(path,cwd);      
+    }
+    if(des[0]!='/')
+    {
+        strcpy(cwd,current_directory);
+        strcat(cwd,"/");
+        strcat(cwd,des);
+        strcpy(des,cwd);      
+    }
+    
+    string temp(path);
+    string temp2=getfilename(temp);
+    temp2="/"+temp2;
+    //cout<<temp2<<endl;
+    char file[FILENAME_MAX];
+    strcpy(file,temp2.c_str());
+    
+    file[temp2.length()]='\0';
+    strcat(des,file);
+    //cout<<des<<endl;
+    //cout<<path;
+    struct stat s=get_meta(path);
+    int src=open(path, O_RDONLY);
+    int dest=open(des, O_WRONLY | O_CREAT,s.st_mode);
+    if(dest<1)
+    {    
+        close(src);
+        cout<<"Unable to create";
+        return;
+    }
+    char buf[s.st_size];
+    while(read(src,buf,sizeof(buf))!=0)
+    {
+        if(write(dest,buf,sizeof(buf))<0)
+        {
+                cout<<"Writing Error";
+        }
+    }
+    
+    fchown(dest,s.st_uid,s.st_gid);
+     
+    close(src);
+    close(dest);
+}
