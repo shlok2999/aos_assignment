@@ -19,7 +19,7 @@ using namespace std;
 char root[FILENAME_MAX];
 char current_directory[FILENAME_MAX];
 vector<string> files;
-stack<string> pevious;
+stack<string> previous;
 stack<string> next;
 int absolutePath;
 
@@ -29,7 +29,18 @@ void open_directory(char *path);
 void display();
 struct stat get_meta(char *file);
 string getfilename(string path);
-void copyfile(char *path, char *des);
+void copyfile(string path, string des);
+void newdir(string file,struct stat meta);
+void copy_directory(string path,string des);
+void delete_file(string file);
+void delete_dir(string file);
+void rename_file(string path, string des);
+void move_file(string path, string des);
+void goto_path(string path);
+bool search(string file,string path);
+void create_file(string file);
+void create_dir(string file);
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////// Main Function //////////////////////////////////////////
@@ -42,13 +53,28 @@ int main()
     }
     current_directory[sizeof(current_directory)-1]='\0';
     strcpy(root,current_directory);
-    char dest[]="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images";
-    char path[]="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/abc.txt";
+    string dest="/home/shlok";
+    string path="images";
+    string new_directory="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images/Hello";
+
+    string filename="/home/shlok/abc1";
+    create_dir(filename);
+    //create_file(filename);
+    //string cwd(current_directory);
+    //cout<<search(filename,cwd)<<endl;
+    //goto_path(dest);
+    //move_file(path,dest);
+    //delete_dir(path);
+    //rename_file(path,dest);
+    //delete_file(path);
+    //copy_directory(path,dest);
+    //newdir(new_directory);
     //cout<<path<<endl<<dest;
-    copyfile(path,dest);
+    //copyfile(path,dest);
     //cout<<current_directory<<" ";
     //cout<<root<<endl;
     //open_directory(current_directory);
+
 }
 
 ///////////////////////////// Open Directory /////////////////////////////////////////////////
@@ -209,43 +235,56 @@ string getfilename(string path)
 
 /////////////////////////// Copy Files ////////////////////////////////////////////////////////
 
-void copyfile(char *path, char *des)
+void copyfile(string path, string des)
 {
     absolutePath=1;
-    //cout<<des;
-    char cwd[FILENAME_MAX];
+    
+    string cwd(current_directory);
+    
     
     if(path[0]!='/')
     {
         if(path[0]=='.')
-            path++;
-        strcpy(cwd,current_directory);
-        strcat(cwd,"/");
-        strcat(cwd,path);
-        strcpy(path,cwd);      
+            path=path.substr(2);
+        //cwd=cwd+"/";
+        path=cwd+"/"+path;  
+        
     }
+    
+    
+    
     if(des[0]!='/')
     {
-        strcpy(cwd,current_directory);
-        strcat(cwd,"/");
-        strcat(cwd,des);
-        strcpy(des,cwd);      
+        if(des[0]=='.')
+            des=des.substr(2);
+        //cwd=cwd+"/";
+        des=cwd+"/"+des;
     }
     
-    string temp(path);
-    string temp2=getfilename(temp);
+    //cout<<path<<endl<<des<<endl;
+    //cout<<path;
+    
+    
+    string temp2=getfilename(path);
     temp2="/"+temp2;
     //cout<<temp2<<endl;
-    char file[FILENAME_MAX];
-    strcpy(file,temp2.c_str());
+    //char file[FILENAME_MAX];
+    //strcpy(file,temp2.c_str());
+    des=des+temp2;
+    //cout<<des;
+
+    char source[FILENAME_MAX];
+    char destination[FILENAME_MAX];
+
+    strcpy(source,path.c_str());
+    source[path.length()]='\0';
     
-    file[temp2.length()]='\0';
-    strcat(des,file);
-    //cout<<des<<endl;
-    //cout<<path;
-    struct stat s=get_meta(path);
-    int src=open(path, O_RDONLY);
-    int dest=open(des, O_WRONLY | O_CREAT,s.st_mode);
+    strcpy(destination,des.c_str());
+    destination[des.length()]='\0';
+    
+    struct stat s=get_meta(source);
+    int src=open(source, O_RDONLY);
+    int dest=open(destination, O_WRONLY | O_CREAT,s.st_mode);
     if(dest<1)
     {    
         close(src);
@@ -265,4 +304,394 @@ void copyfile(char *path, char *des)
      
     close(src);
     close(dest);
+}
+
+////////////////////////////////// Creating a Directory ////////////////////////////////////////////
+void newdir(string file,struct stat meta)
+{
+    char path[FILENAME_MAX];
+    strcpy(path,file.c_str());
+    path[file.length()]='\0';
+    if(mkdir(path,meta.st_mode)==-1)
+    {
+        cout<<"Unable to create file";
+    }
+}
+
+//////////////////////////////// Copy a directory //////////////////////////////////////////////////
+void copy_directory(string path,string des)
+{
+    absolutePath=1;
+    
+    string cwd(current_directory);
+    
+    
+    if(path[0]!='/')
+    {
+        if(path[0]=='.')
+            path=path.substr(2);
+        //cwd=cwd+"/";
+        path=cwd+"/"+path;  
+        
+    }
+    
+    
+    
+    if(des[0]!='/')
+    {
+        if(des[0]=='.')
+            des=des.substr(2);
+        //cwd=cwd+"/";
+        des=cwd+"/"+des;
+    }
+    string temp2=getfilename(path);
+    temp2="/"+temp2;
+    //cout<<temp2<<endl;
+    //char file[FILENAME_MAX];
+    //strcpy(file,temp2.c_str());
+    des=des+temp2;
+
+    char source[FILENAME_MAX];
+    char destination[FILENAME_MAX];
+
+    strcpy(source,path.c_str());
+    source[path.length()]='\0';
+    
+    strcpy(destination,des.c_str());
+    destination[des.length()]='\0';
+    
+    
+
+    DIR *directory;
+    if((directory=opendir(source))==NULL) // Opening source directory
+    {
+        cout<<"Could not access file";
+        return;
+    }
+    dirent *dir;
+    vector<string> temp_files;
+    while((dir=readdir(directory))!=NULL) //Reading Files name;
+    {
+        temp_files.push_back(string(dir->d_name));
+    }
+    closedir(directory);
+
+    struct stat s=get_meta(source);
+    newdir(destination,s); // Creating the folder
+
+    for(int i=0;i<temp_files.size();i++)
+    {
+        if(temp_files[i]=="." || temp_files[i]=="..")
+            continue;
+        char temp[FILENAME_MAX];
+        temp_files[i]= path + "/" + temp_files[i];
+        strcpy(temp,temp_files[i].c_str());
+        temp[temp_files[i].length()]='\0';
+        struct stat ts=get_meta(temp);
+        if(S_ISDIR(ts.st_mode))
+        {
+            copy_directory(temp_files[i],des);
+        }
+        else
+        {
+            copyfile(temp_files[i],des);
+        }
+    }
+
+}
+
+///////////////////////////////////// Delete File ///////////////////////////////////////////////////
+
+void delete_file(string file)
+{
+    string cwd(current_directory);
+    if(file[0]!='/')
+    {
+        if(file[0]=='.')
+            file=file.substr(2);
+        file=cwd+"/"+file;
+    }
+    char path[FILENAME_MAX];
+    strcpy(path,file.c_str());
+    path[file.length()]='\0';
+
+    struct stat meta;
+    if(stat(path,&meta) == -1)
+    {
+        return;
+    }
+    unlink(path);
+}
+
+//////////////////////////////// Delete Directory ///////////////////////////////////////////////////
+
+void delete_dir(string file)
+{
+    string cwd(current_directory);
+    if(file[0]!='/')
+    {
+        if(file[0]=='.')
+            file=file.substr(2);
+        file=cwd+"/"+file;
+    }
+    char path[FILENAME_MAX];
+    strcpy(path,file.c_str());
+    path[file.length()]='\0';
+    //cout<<path;
+    struct stat meta;
+    if(stat(path,&meta) == -1)
+    {
+        return;
+    }
+
+    DIR *directory;
+    if((directory=opendir(path))==NULL) // Opening source directory
+    {
+        cout<<"Could not access file";
+        return;
+    }
+    dirent *dir;
+    vector<string> temp_files;
+    while((dir=readdir(directory))!=NULL) //Reading Files name;
+    {
+        temp_files.push_back(string(dir->d_name));
+    }
+    closedir(directory);
+
+    for(int i=0;i<temp_files.size();i++)
+    {
+        absolutePath=1;
+        
+        if(temp_files[i]=="." || temp_files[i]=="..")
+            continue;
+        char temp[FILENAME_MAX];
+        temp_files[i]= file + "/" + temp_files[i];
+        //cout<<temp_files[i]<<endl;
+        strcpy(temp,temp_files[i].c_str());
+        temp[temp_files[i].length()]='\0';
+        //cout<<temp;
+        struct stat ts=get_meta(temp);
+        if(S_ISDIR(ts.st_mode))
+        {
+            //cout<<"hello";
+            delete_dir(temp_files[i]);
+        }
+        else
+        {
+            delete_file(temp_files[i]);
+        }
+    }
+
+    rmdir(path);
+}
+
+///////////////////////////////// Renaming thing /////////////////////////////////////////////////
+
+void rename_file(string path,string des)
+{
+    string cwd(current_directory);
+    
+    
+    if(path[0]!='/')
+    {
+        if(path[0]=='.')
+            path=path.substr(2);
+        //cwd=cwd+"/";
+        path=cwd+"/"+path;  
+        
+    }
+    
+    
+    
+    if(des[0]!='/')
+    {
+        if(des[0]=='.')
+            des=des.substr(2);
+        //cwd=cwd+"/";
+        des=cwd+"/"+des;
+    }
+
+    char source[FILENAME_MAX];
+    char destination[FILENAME_MAX];
+
+    strcpy(source,path.c_str());
+    source[path.length()]='\0';
+    
+    strcpy(destination,des.c_str());
+    destination[des.length()]='\0';
+    cout<<source<<endl;
+    cout<<destination;
+    rename(source,destination);
+}
+
+////////////////////////// Moving files /////////////////////////////////////////////////////////
+
+void move_file(string path, string des)
+{
+    string cwd(current_directory);
+    
+    
+    if(path[0]!='/')
+    {
+        if(path[0]=='.')
+            path=path.substr(2);
+        //cwd=cwd+"/";
+        path=cwd+"/"+path;  
+        
+    }
+    
+    
+    
+    if(des[0]!='/')
+    {
+        if(des[0]=='.')
+            des=des.substr(2);
+        //cwd=cwd+"/";
+        des=cwd+"/"+des;
+    }
+    string temp2=getfilename(path);
+    temp2="/"+temp2;
+    //cout<<temp2<<endl;
+    //char file[FILENAME_MAX];
+    //strcpy(file,temp2.c_str());
+    des=des+temp2;
+
+    char source[FILENAME_MAX];
+    char destination[FILENAME_MAX];
+
+    strcpy(source,path.c_str());
+    source[path.length()]='\0';
+    
+    strcpy(destination,des.c_str());
+    destination[des.length()]='\0';
+
+    cout<<source<<endl;
+    cout<<destination;
+
+
+    rename(source,destination);
+
+}
+
+///////////////////////////////////////// Goto  /////////////////////////////////////////////////////
+
+
+void goto_path(string path)
+{
+    string cwd(current_directory);
+    previous.push(cwd);
+
+    if(path[0]!='/')
+    {
+        if(path[0]=='.')
+            path=path.substr(2);
+        //cwd=cwd+"/";
+        path=cwd+"/"+path;     
+    }
+
+    strcpy(current_directory,path.c_str());
+    current_directory[path.length()]='\0';
+    //cout<<current_directory;
+
+}
+
+///////////////////////////// Search Function /////////////////////////////////////////////////////
+
+bool search(string file,string path)
+{
+    
+    char p[FILENAME_MAX];
+    strcpy(p,path.c_str());
+    p[path.length()]='\0';
+
+    DIR *directory;
+    if((directory=opendir(p))==NULL) // Opening source directory
+    {
+        cout<<"Could not access file";
+        return false;
+    }
+    dirent *dir;
+    vector<string> temp_files;
+    while((dir=readdir(directory))!=NULL) //Reading Files name;
+    {
+        temp_files.push_back(string(dir->d_name));
+    }
+    closedir(directory);
+
+
+    for(int i=0;i<temp_files.size();i++)
+    {
+        absolutePath=1;
+        if(temp_files[i]=="." || temp_files[i]=="..")
+            continue;
+        if(temp_files[i]==file)
+            return true;
+        
+        char temp[FILENAME_MAX];
+        temp_files[i]= path + "/" + temp_files[i];
+        //cout<<temp_files[i]<<endl;
+        strcpy(temp,temp_files[i].c_str());
+        temp[temp_files[i].length()]='\0';
+        //cout<<temp;
+        struct stat ts=get_meta(temp);
+        if(S_ISDIR(ts.st_mode))
+        {
+            //cout<<"hello";
+            bool ans=search(file,temp_files[i]);
+            if(ans)
+                return true;
+        }
+        
+    }
+    return false;
+
+}
+
+////////////////////////////////// Create File //////////////////////////////////////////////////////
+
+void create_file(string path)
+{
+    string cwd(current_directory);
+    
+    
+    if(path[0]!='/')
+    {
+        if(path[0]=='.')
+            path=path.substr(2);
+        //cwd=cwd+"/";
+        path=cwd+"/"+path;  
+        
+    }
+    char file[FILENAME_MAX];
+    strcpy(file,path.c_str());
+    file[path.length()]='\0';
+    if(creat(file,S_IRUSR| S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH )==-1)
+    {
+        perror("File Could not be created");
+        return;
+    }
+}
+/////////////////////////// Creating Directory ///////////////////////////////////////////////////////
+void create_dir(string path)
+{
+    string cwd(current_directory);
+    
+    
+    if(path[0]!='/')
+    {
+        if(path[0]=='.')
+            path=path.substr(2);
+        //cwd=cwd+"/";
+        path=cwd+"/"+path;  
+        
+    }
+    char file[FILENAME_MAX];
+    strcpy(file,path.c_str());
+    file[path.length()]='\0';
+
+    if (mkdir(file,S_IRUSR| S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH ) == -1)
+    {
+        perror("Error Creating Directory");
+        return;
+    }
 }
