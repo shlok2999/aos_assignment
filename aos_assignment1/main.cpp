@@ -12,16 +12,24 @@
 #include<grp.h>
 #include<termios.h>
 #include<fcntl.h>
+#include <sys/ioctl.h>
+#include<string.h>
 using namespace std;
 
 //////////////////////////////// Global Variabble ////////////////////////////////////////////// 
-
+char esc='\x1b';
 char root[FILENAME_MAX];
 char current_directory[FILENAME_MAX];
 vector<string> files;
 stack<string> previous;
-stack<string> next;
+stack<string> next_f;
 int absolutePath;
+struct termios original_setting,new_setting;
+long long int start;
+long long int rows;
+long long int x;
+#define EXECL_PATH "/usr/bin/xdg-open"
+#define EXECL_NAME "xdg-open"
 
 ///////////////////////////// Function Declaration ////////////////////////////////////////////
 
@@ -40,6 +48,14 @@ void goto_path(string path);
 bool search(string file,string path);
 void create_file(string file);
 void create_dir(string file);
+void screen();
+void showfile(char *path);
+void getWindowSize();
+void DisableScreenMode();
+void pos_cursor(int x);
+void clear();
+void displayn(int n);
+string goback();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -53,12 +69,15 @@ int main()
     }
     current_directory[sizeof(current_directory)-1]='\0';
     strcpy(root,current_directory);
-    string dest="/home/shlok";
-    string path="images";
-    string new_directory="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images/Hello";
-
-    string filename="/home/shlok/abc1";
-    create_dir(filename);
+    //string dest="/home/shlok";
+    //string path="images";
+    //string new_directory="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images/Hello";
+    open_directory(current_directory);
+    screen();
+    clear();
+    //printf("\033[H\033[J");
+    //string filename="/home/shlok/abc1";
+    //create_dir(filename);
     //create_file(filename);
     //string cwd(current_directory);
     //cout<<search(filename,cwd)<<endl;
@@ -76,11 +95,19 @@ int main()
     //open_directory(current_directory);
 
 }
+/////////////////////////////// Clear the screen ////////////////////////////////////////////////
+
+void clear()
+{
+    cout<<"\x1b[2J";
+    cout<<"\x1b[1;1H";
+}
 
 ///////////////////////////// Open Directory /////////////////////////////////////////////////
 
 void open_directory(char *path)
 {
+    x=1;
     DIR *directory;
     if((directory= opendir(path))== NULL)
     {
@@ -88,33 +115,56 @@ void open_directory(char *path)
         return;
     }
 
-    printf("\033[H\033[J");
+    
     files.clear();
     struct dirent *dir;
 
     while((dir=readdir(directory))!= NULL)
+    {
+
         files.push_back(string(dir->d_name));
+        //cout<<string(dir->d_name)<<endl;
+    }
     
     closedir(directory);
 
-    int total_lines=files.size();
 
+    //sort(files.begin(),files.end());
+
+    getWindowSize();
+    //int total_lines=files.size();
+    start=0;
     display(); // displays all the directory in the cuurent directory
 
 }
-
 ////////////////////////////////// Displays the function ///////////////////////////////////////
 
 void display()
 {
-    for(int i=0;i<files.size();i++)
+    clear();
+    //cout<<start<<endl;
+    for(int i=0;i<files.size()&& i<rows;i++)
     {
         char temp[files[i].length()+1];
         strcpy(temp,files[i].c_str());
         temp[files[i].length()]='\0';
-       
-        absolutePath=0;
-        struct stat meta=get_meta(temp);
+        //cout<<temp<<endl;
+        
+        showfile(temp);  
+        //cout<<files[i]<<endl;
+    }
+
+    pos_cursor(rows+3);
+    cout<<"----NORMAL MODE";
+
+    //cin.get();
+}
+
+
+void showfile(char *path)
+{
+    absolutePath=0;
+        struct stat meta=get_meta(path);
 
         //if directory
         if(S_ISDIR(meta.st_mode))
@@ -181,12 +231,11 @@ void display()
         mod_time[strlen(mod_time)-1]='\0';
         printf("%-10s",mod_time);
 
-        //Display File name
-        printf("\t%-10s\n",temp);
-        //printf("a");
-    }
+        printf("%10.2fK", ((double)meta.st_size) / 1024);
 
-    //cin.get();
+        //Display File name
+        printf("\t%-10s\n",path);
+        //printf("a");
 }
 
 /////////////////////////////////// Gets all the meta data about the file ///////////////////////////
@@ -214,10 +263,248 @@ struct stat get_meta(char *file)
 
     return meta;
 };
+/////////////////////////////////////// Get window size ////////////////////////////////////////
+
+void getWindowSize()
+{
+    struct winsize window;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &window);
+    rows=window.ws_row-3;
+}
 
 /////////////////////////// Teriminal Window Cursor Handling////////////////////////////////////
+string goback()
+{
+    string cwd(current_directory);
+    reverse(cwd.begin(),cwd.end());
+    for(int i=0;i<cwd.length();i++)
+    {
+        if(cwd[i]=='/')
+        {
+            cwd=cwd.substr(i+1);
+            break;
+        }
+    }
+
+    reverse(cwd.begin(),cwd.end());
+    return cwd;
+}
+
+void displayn(int n)
+{
+    clear();
+    for(int i=start;i<n;i++)
+    {
+        char temp[files[i].length()+1];
+        strcpy(temp,files[i].c_str());
+        temp[files[i].length()]='\0';
+        //cout<<temp<<endl;
+        
+        showfile(temp);  
+        //cout<<files[i]<<endl;
+    }
+
+    pos_cursor(rows+3);
+    cout<<"----NORMAL MODE";
+
+}
 
 
+
+void pos_cursor(int x)
+{
+    cout<<"\x1b["<<x<<";1H";
+}
+
+void DisableScreenMode()
+{
+      tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_setting);
+}
+
+void screen()
+{
+    //write(STDOUT_FILENO, "\x1b[H", 3);
+    pos_cursor(x);
+    tcgetattr(STDIN_FILENO, &original_setting);
+    atexit(DisableScreenMode);
+    new_setting=original_setting;
+    new_setting.c_lflag &= ~(ECHO | ICANON);
+    tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
+    
+    while(1)
+    {
+        char ch=cin.get();
+        if(ch=='h') //Home Key
+        {
+            string cwd(current_directory);
+            previous.push(cwd);
+            strcpy(current_directory,root);
+            open_directory(current_directory);
+            pos_cursor(x);
+        }
+        else if(ch=='q')
+        {
+            break;
+        }
+        else if(ch==127)
+        {
+            string current=goback();
+            string cwd(current_directory);
+            previous.push(cwd);
+            strcpy(current_directory,current.c_str());
+            current_directory[current.length()]='\0';
+            open_directory(current_directory);
+            pos_cursor(1);
+
+        }
+        else if(ch== esc) //To see if arrow direction
+        {
+            ch=cin.get();
+            char dir=cin.get();
+            if(dir=='A')
+            {
+                //cout<<"Hello";
+                
+                if(x+start>1)
+                {
+                    if(x>1)
+                    {
+                        x--;
+                        pos_cursor(x);
+                    }
+
+                    else if(x==1)
+                    {
+                        if(start>0)
+                        {
+                            start--;
+                        }
+
+                        int n;
+
+                        if(rows >= files.size())
+                        {
+                            n=files.size();
+                        }
+                        else
+                        {
+                            n=start+rows;
+                        }
+
+                        displayn(n);
+                        pos_cursor(x);
+                    }
+                }
+                
+
+
+            }
+
+            if(dir== 'B')
+            {
+                if(x + start < files.size() )
+                {
+                    if(x<rows)
+                    {
+                        x++;
+                        pos_cursor(x);
+                    }
+                    else if(x==rows)
+                    {
+                        if(rows < files.size())
+                        {
+                            start++;
+                            
+                        }
+                        int n;
+                        if(rows >= files.size())
+                        {
+                            n=files.size();
+                        }
+                        else
+                        {
+                            n=start+rows;
+                        }
+                        displayn(n);
+                        pos_cursor(x);
+                    }
+                }
+            }
+
+            if(dir=='C')
+            {
+                if(! next_f.empty())
+                {
+                    string cwd(current_directory);
+                    previous.push(cwd);
+                    string current=next_f.top();
+                    next_f.pop();
+                    strcpy(current_directory,current.c_str());
+                    current_directory[current.length()]='\0';
+                    open_directory(current_directory); 
+                    pos_cursor(1);  
+                }
+            }
+
+            if(dir=='D')
+            {
+                if(!previous.empty())
+                {
+                    string cwd(current_directory);
+                    next_f.push(cwd);
+                    string current=previous.top();
+                    previous.pop();
+                    strcpy(current_directory,current.c_str());
+                    current_directory[current.length()]='\0';
+                    open_directory(current_directory);
+                    pos_cursor(1);
+                }   
+            }
+        }
+        //Enter is pressed
+        else if(ch==10)
+        {
+            string current=files[start+x-1];
+            if(current=="..")
+            {
+                current=goback();
+                string cwd(current_directory);
+                previous.push(cwd);
+                strcpy(current_directory,current.c_str());
+                current_directory[current.length()]='\0';
+                open_directory(current_directory);
+                pos_cursor(1);
+            }
+            else if(current!=".")
+            {
+                string cwd(current_directory);
+                current=cwd+"/"+current;
+                absolutePath=1;
+                char temp[FILENAME_MAX];
+                strcpy(temp,current.c_str());
+                struct stat meta=get_meta(temp);
+                if(S_ISDIR(meta.st_mode))
+                {
+                    previous.push(cwd);
+                    strcpy(current_directory,current.c_str());
+                    current_directory[current.length()]='\0';
+                    open_directory(current_directory);
+                    pos_cursor(1);
+                }
+                else
+                {
+                    pid_t pid=fork();
+                    if(pid==0)
+                    {
+                        execl(EXECL_PATH,EXECL_NAME,current.c_str(),(char *) 0);
+                    }
+                }
+            }
+        }
+    }
+    
+
+}
 
 ///////////////////////////////// Get file name ////////////////////////////////////////////////
 
