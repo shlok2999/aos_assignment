@@ -77,6 +77,7 @@ int main()
     //string dest="/home/shlok";
     //string path="images";
     //string new_directory="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images/Hello";
+    //cout<<current_directory;
     open_directory(current_directory);
     screen();
     clear();
@@ -546,6 +547,10 @@ void commandmode()
         else if(ch=='q')
         {
             exit(0);
+        }
+        else if(ch == esc)
+        {
+            return;
         }
     }
 }
