@@ -352,6 +352,7 @@ void screen()
         {
             commandmode();
             open_directory(current_directory);
+            pos_cursor(x);
         }
         else if(ch=='q')
         {
@@ -704,6 +705,14 @@ void command_processing(string command)
             cout<<"true";
        else
             cout<<"false";
+   }
+   else if(tokens[0]=="delete_dir")
+   {
+       delete_dir(tokens[1]);
+   }
+   else if(tokens[0]=="delete_file")
+   {
+       delete_file(tokens[1]);
    }
 
 }
