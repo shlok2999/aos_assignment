@@ -18,6 +18,7 @@
 using namespace std;
 
 //////////////////////////////// Global Variabble ////////////////////////////////////////////// 
+string sys_root="/home/shlok";
 char esc='\x1b';
 char root[FILENAME_MAX];
 char current_directory[FILENAME_MAX];
@@ -606,9 +607,77 @@ void command_processing(string command)
     }
     */
 
+   for(int i=0;i<tokens.size();i++)
+    {
+        if(tokens[i][0]=='~')
+        {
+            tokens[i]=sys_root+tokens[i].substr(1);
+        }
+    }
+
    if(tokens[0]=="copy")
    {
-           
+       if(tokens.size()>=3)
+       {
+           string destination=tokens[tokens.size()-1];
+           for(int i=1;i<tokens.size()-1;i++)
+            {
+                if(tokens[i]==".")
+                {
+                    absolutePath=1;
+                    string cwd(current_directory);
+                    tokens[i]=cwd;
+                }
+                else if(tokens[i][0]!='/')
+                {
+                    if(tokens[i][0]=='.')
+                        tokens[i]=tokens[i].substr(2);
+                    absolutePath=0;
+                }
+                else
+                    absolutePath=1;
+                
+                char path[FILENAME_MAX];
+                strcpy(path,tokens[i].c_str());
+                path[tokens[i].length()]='\0';
+                struct stat meta=get_meta(path);
+                if(S_ISDIR(meta.st_mode))
+                    copy_directory(tokens[i],destination);
+                else
+                    copyfile(tokens[i],destination);
+            }
+       }
+       else
+       {
+           perror("Wrong no.of argument");
+           exit(1);
+       }
+   }
+   else if(tokens[0]=="move")
+   {
+       if(tokens.size()>=3)
+       {
+           string destination=tokens[tokens.size()-1];
+           for(int i=1;i<tokens.size()-1;i++)
+            {
+                if(tokens[i]==".")
+                {
+                    absolutePath=1;
+                    string cwd(current_directory);
+                    tokens[i]=cwd;
+                }
+                move_file(tokens[i],destination);
+            }
+       }
+       else
+       {
+           perror("Wrong no.of argument");
+           exit(1);
+       }
+   }
+   else if(tokens[0]=="rename")
+   {
+       rename_file(tokens[1],tokens[2]);
    }
    else if(tokens[0]=="create_file")
    {
