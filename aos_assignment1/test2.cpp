@@ -1079,7 +1079,15 @@ void goto_path(string path)
     string cwd(current_directory);
     previous.push(cwd);
 
-    if(path[0]!='/')
+    if(path==".")
+    {
+        return;
+    }
+    else if(path=="..")
+    {
+        path=goback();
+    }
+    else if(path[0]!='/')
     {
         if(path[0]=='.')
             path=path.substr(2);
