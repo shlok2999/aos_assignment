@@ -14,9 +14,11 @@
 #include<fcntl.h>
 #include <sys/ioctl.h>
 #include<string.h>
+
 using namespace std;
 
 //////////////////////////////// Global Variabble ////////////////////////////////////////////// 
+string sys_root="/home/shlok";
 char esc='\x1b';
 char root[FILENAME_MAX];
 char current_directory[FILENAME_MAX];
@@ -46,8 +48,8 @@ void rename_file(string path, string des);
 void move_file(string path, string des);
 void goto_path(string path);
 bool search(string file,string path);
-void create_file(string file);
-void create_dir(string file);
+void create_file(string filename,string file);
+void create_dir(string filename,string file);
 void screen();
 void showfile(char *path);
 void getWindowSize();
@@ -56,6 +58,9 @@ void pos_cursor(int x);
 void clear();
 void displayn(int n);
 string goback();
+void commandmode();
+void refresh();
+void command_processing(string command);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -72,6 +77,7 @@ int main()
     //string dest="/home/shlok";
     //string path="images";
     //string new_directory="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images/Hello";
+    //cout<<current_directory;
     open_directory(current_directory);
     screen();
     clear();
@@ -154,7 +160,7 @@ void display()
         //cout<<files[i]<<endl;
     }
 
-    pos_cursor(rows+3);
+    pos_cursor(rows+1);
     cout<<"----NORMAL MODE";
 
     //cin.get();
@@ -259,6 +265,7 @@ struct stat get_meta(char *file)
     if(stat(path,&meta)==-1)
     {
         perror("Error in stat");
+        exit(1);
     }
 
     return meta;
@@ -304,7 +311,7 @@ void displayn(int n)
         //cout<<files[i]<<endl;
     }
 
-    pos_cursor(rows+3);
+    pos_cursor(rows+1);
     cout<<"----NORMAL MODE";
 
 }
@@ -339,6 +346,12 @@ void screen()
             string cwd(current_directory);
             previous.push(cwd);
             strcpy(current_directory,root);
+            open_directory(current_directory);
+            pos_cursor(x);
+        }
+        else if(ch == ':')
+        {
+            commandmode();
             open_directory(current_directory);
             pos_cursor(x);
         }
@@ -503,6 +516,208 @@ void screen()
         }
     }
     
+
+}
+//////////////////////////////////// Command Mode //////////////////////////////////////////////////////////
+
+void refresh()
+{
+    int line=rows+1;
+    pos_cursor(line);
+    cout<<"\x1b[0J";
+    cout<<"---- Command Mode\n";
+
+}
+
+void commandmode()
+{
+    refresh();
+    while(1)
+    {
+        char ch;
+        ch= cin.get();
+        refresh();
+        if(ch == ':')
+        {
+            DisableScreenMode();
+            cout<<"Enter command :";
+            string command;
+            getline(cin,command);
+            command_processing(command);
+            tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
+        }
+        else if(ch=='q')
+        {
+            exit(0);
+        }
+        else if(ch == esc)
+        {
+            return;
+        }
+    }
+}
+
+
+////////////////////////////////// Command Processing /////////////////////////////////////////
+
+void command_processing(string command)
+{
+    int flag=0;
+    int count=0;
+    int index=0;
+    string token;
+    vector<string> tokens;
+
+    for(int i=0;i<command.length();i++)
+    {
+        if(command[i]=='\'' && flag==0)
+        {
+            flag=1;
+            count=0;
+            index=i+1;
+        }
+        else if(command[i]=='\'' && flag==1)
+        {
+            flag=0;
+            count=0;
+            token=command.substr(index,count);
+            tokens.push_back(token);
+        }
+        else if(command[i]==' ' && flag==1)
+        {
+            count++;
+        }
+        else if(command[i]==' ' && flag==0)
+        {
+            tokens.push_back(token);
+            token="";
+        }
+        else if(flag==1)
+        {
+            count++;
+        }
+        else
+        {
+            token+=command[i];
+        }
+    }
+
+    if(command[command.length()-1]!='\'')
+    {
+        tokens.push_back(token);
+    }
+
+    /*
+    for(int i=0;i<tokens.size();i++)
+    {
+        cout<<tokens[i]<<" ";
+    }
+    */
+
+   for(int i=0;i<tokens.size();i++)
+    {
+        if(tokens[i][0]=='~')
+        {
+            tokens[i]=sys_root+tokens[i].substr(1);
+        }
+        else if(tokens[i]=="..")
+            tokens[i]=goback();
+    }
+
+   if(tokens[0]=="copy")
+   {
+       if(tokens.size()>=3)
+       {
+           string destination=tokens[tokens.size()-1];
+           //cout<<destination;
+           for(int i=1;i<tokens.size()-1;i++)
+            {
+                if(tokens[i]==".")
+                {
+                    absolutePath=1;
+                    string cwd(current_directory);
+                    tokens[i]=cwd;
+                }
+                else if(tokens[i][0]!='/')
+                {
+                    if(tokens[i][0]=='.')
+                        tokens[i]=tokens[i].substr(2);
+                    absolutePath=0;
+                }
+                else
+                    absolutePath=1;
+                
+                char path[FILENAME_MAX];
+                strcpy(path,tokens[i].c_str());
+                path[tokens[i].length()]='\0';
+                struct stat meta=get_meta(path);
+                if(S_ISDIR(meta.st_mode))
+                    copy_directory(tokens[i],destination);
+                else
+                    copyfile(tokens[i],destination);
+            }
+       }
+       else
+       {
+           perror("Wrong no.of argument");
+           exit(1);
+       }
+   }
+   else if(tokens[0]=="move")
+   {
+       if(tokens.size()>=3)
+       {
+           string destination=tokens[tokens.size()-1];
+           for(int i=1;i<tokens.size()-1;i++)
+            {
+                if(tokens[i]==".")
+                {
+                    absolutePath=1;
+                    string cwd(current_directory);
+                    tokens[i]=cwd;
+                }
+                move_file(tokens[i],destination);
+            }
+       }
+       else
+       {
+           perror("Wrong no.of argument");
+           exit(1);
+       }
+   }
+   else if(tokens[0]=="rename")
+   {
+       rename_file(tokens[1],tokens[2]);
+   }
+   else if(tokens[0]=="create_file")
+   {
+       create_file(tokens[1],tokens[2]);
+   }
+   else if(tokens[0]=="create_dir")
+   {
+       create_dir(tokens[1],tokens[2]);
+   }
+   else if(tokens[0]=="goto")
+   {
+       goto_path(tokens[1]);
+   }
+   else if(tokens[0]=="search")
+   {
+       string cwd(current_directory);
+       bool ans=search(tokens[1],cwd);
+       if(ans)
+            cout<<"true";
+       else
+            cout<<"false";
+   }
+   else if(tokens[0]=="delete_dir")
+   {
+       delete_dir(tokens[1]);
+   }
+   else if(tokens[0]=="delete_file")
+   {
+       delete_file(tokens[1]);
+   }
 
 }
 
@@ -852,8 +1067,8 @@ void move_file(string path, string des)
     strcpy(destination,des.c_str());
     destination[des.length()]='\0';
 
-    cout<<source<<endl;
-    cout<<destination;
+    //cout<<source<<endl;
+    //cout<<destination;
 
 
     rename(source,destination);
@@ -936,7 +1151,7 @@ bool search(string file,string path)
 
 ////////////////////////////////// Create File //////////////////////////////////////////////////////
 
-void create_file(string path)
+void create_file(string filename,string path)
 {
     string cwd(current_directory);
     
@@ -949,6 +1164,7 @@ void create_file(string path)
         path=cwd+"/"+path;  
         
     }
+    path=path+"/"+filename;
     char file[FILENAME_MAX];
     strcpy(file,path.c_str());
     file[path.length()]='\0';
@@ -959,7 +1175,7 @@ void create_file(string path)
     }
 }
 /////////////////////////// Creating Directory ///////////////////////////////////////////////////////
-void create_dir(string path)
+void create_dir(string filename,string path)
 {
     string cwd(current_directory);
     
@@ -972,6 +1188,7 @@ void create_dir(string path)
         path=cwd+"/"+path;  
         
     }
+    path=path+"/"+filename;
     char file[FILENAME_MAX];
     strcpy(file,path.c_str());
     file[path.length()]='\0';
