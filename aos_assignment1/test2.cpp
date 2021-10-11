@@ -27,9 +27,10 @@ stack<string> previous;
 stack<string> next_f;
 int absolutePath;
 struct termios original_setting,new_setting;
-long long int start;
-long long int rows;
-long long int x;
+long long int start , starty;
+long long int rows , cols;
+long long int x , y;
+int mode ;
 #define EXECL_PATH "/usr/bin/xdg-open"
 #define EXECL_NAME "xdg-open"
 
@@ -51,22 +52,40 @@ bool search(string file,string path);
 void create_file(string filename,string file);
 void create_dir(string filename,string file);
 void screen();
-void showfile(char *path);
+string showfile(char *path);
 void getWindowSize();
 void DisableScreenMode();
 void pos_cursor(int x);
+void pos_cursor(int x,int y);
 void clear();
 void displayn(int n);
 string goback();
 void commandmode();
 void refresh();
 void command_processing(string command);
+void display_linen(string line,int n);
+void display_line(string line);
+static void resizing(int sig);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
+static void resizing(int sig)
+{
+    if(sig==SIGWINCH)
+    {
+        //Do something
+        open_directory(current_directory);
+        if(mode==0)
+            pos_cursor(x);
+        else
+            refresh();
+    }
+}
+
 
 ////////////////////////////////////// Main Function //////////////////////////////////////////
 int main()
 {
+    signal(SIGWINCH, resizing);
     if(!getcwd(current_directory,sizeof(current_directory)))
     {
         cout<<"could not find path";
@@ -114,6 +133,7 @@ void clear()
 void open_directory(char *path)
 {
     x=1;
+    y=1;
     DIR *directory;
     if((directory= opendir(path))== NULL)
     {
@@ -140,6 +160,7 @@ void open_directory(char *path)
     getWindowSize();
     //int total_lines=files.size();
     start=0;
+    starty=0;
     display(); // displays all the directory in the cuurent directory
 
 }
@@ -156,7 +177,9 @@ void display()
         temp[files[i].length()]='\0';
         //cout<<temp<<endl;
         
-        showfile(temp);  
+        string line=showfile(temp);
+        display_line(line);
+        cout<<"\n";  
         //cout<<files[i]<<endl;
     }
 
@@ -167,81 +190,101 @@ void display()
 }
 
 
-void showfile(char *path)
+string showfile(char *path)
 {
-    absolutePath=0;
+        absolutePath=0;
         struct stat meta=get_meta(path);
-
+        string line="";
         //if directory
         if(S_ISDIR(meta.st_mode))
-            printf("d");
+            line+="d";
         else
-            printf("-");
+            line+="-";
         //read mode for user?
         if(meta.st_mode & S_IRUSR)
-            printf("r");
+            line+="r";
         else
-            printf("-");
+            line+="-";
         //write mode for user?
         if(meta.st_mode & S_IWUSR)
-            printf("w");
+            line+="w";
         else
-            printf("-");
+            line+="-";
         //executable mode for user?
         if(meta.st_mode & S_IXUSR)
-            printf("x");
+            line+="x";
         else
-            printf("-");
+            line+="-";
         //read mode for grp?
         if(meta.st_mode & S_IRGRP)
-            printf("r");
+            line+="r";
         else
-            printf("-");
+            line+="-";
         //write mode for grp?
         if(meta.st_mode & S_IWGRP)
-            printf("w");
+            line+="w";
         else
-            printf("-");
+            line+="-";
         //executable mode for grp?
         if(meta.st_mode & S_IXGRP)
-            printf("x");
+            line+="x";
         else
-            printf("-");
+            line+="-";
         //read mode for other?
         if(meta.st_mode & S_IROTH)
-            printf("r");
+            line+="r";
         else
-            printf("-");
+            line+="-";
         //write mode for other?
         if(meta.st_mode & S_IWOTH)
-            printf("w");
+            line+="w";
         else
-            printf("-");
+            line+="-";
         //executable mode for other?
         if(meta.st_mode & S_IXOTH)
-            printf("x");
+            line+="x";
         else
-            printf("-");
+            line+="-";
         
         //Getting user name and group name
-
+        line+="  ";
         struct passwd *user=getpwuid(meta.st_uid);
         if(user)
-            printf("\t%-9s",user->pw_name);
+            line+=user->pw_name;
+        line+="  ";
         struct group *grp=getgrgid(meta.st_gid);
         if(grp)
-            printf("%-9s",grp->gr_name);
+        {    line+=grp->gr_name;
+             line+="  ";
+        }
         
         //Getting the modified time
         char *mod_time=ctime(&meta.st_mtime);
         mod_time[strlen(mod_time)-1]='\0';
-        printf("%-10s",mod_time);
-
-        printf("%10.2fK", ((double)meta.st_size) / 1024);
-
+        string time(mod_time);
+        line+=time;
+        line+="  ";
+        //printf("%10.2fK", ((double)meta.st_size) / 1024);
+        float temp=((float)meta.st_size) / 1024;
+        string stemp=to_string(temp);
+        int pos=stemp.find('.');
+        stemp=stemp.substr(0,pos+3);
+        line=line+stemp+"KB";
+        line+="  ";
         //Display File name
-        printf("\t%-10s\n",path);
+        string p(path);
+        line+=p;
         //printf("a");
+        return line;
+}
+
+////////////////////////////////////// Display line //////////////////////////////////////////////////
+
+void display_line(string line)
+{
+    int n=line.length();
+    for(int i=0;i<n && i<cols ;i++)
+        cout<<line[i];
 }
 
 /////////////////////////////////// Gets all the meta data about the file ///////////////////////////
@@ -277,6 +320,7 @@ void getWindowSize()
     struct winsize window;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &window);
     rows=window.ws_row-3;
+    cols= window.ws_col;
 }
 
 /////////////////////////// Teriminal Window Cursor Handling////////////////////////////////////
@@ -307,8 +351,9 @@ void displayn(int n)
         temp[files[i].length()]='\0';
         //cout<<temp<<endl;
         
-        showfile(temp);  
-        //cout<<files[i]<<endl;
+        string line=showfile(temp);
+        display_line(line);  
+        cout<<"\n";
     }
 
     pos_cursor(rows+1);
@@ -316,11 +361,24 @@ void displayn(int n)
 
 }
 
-
+void display_linen(string line,int n)
+{
+    pos_cursor(x);
+    int i;
+    for(i=starty;i<n;i++)
+    {
+        cout<<line[i];
+    }
+}
 
 void pos_cursor(int x)
 {
     cout<<"\x1b["<<x<<";1H";
+}
+
+void pos_cursor(int x,int y)
+{
+    cout<<"\x1b["<<x<<";"<<y<<"H";
 }
 
 void DisableScreenMode()
@@ -330,6 +388,7 @@ void DisableScreenMode()
 
 void screen()
 {
+    mode=0;
     //write(STDOUT_FILENO, "\x1b[H", 3);
     pos_cursor(x);
     tcgetattr(STDIN_FILENO, &original_setting);
@@ -351,13 +410,88 @@ void screen()
         }
         else if(ch == ':')
         {
+            mode=1;
             commandmode();
             open_directory(current_directory);
             pos_cursor(x);
+            mode=0;
         }
         else if(ch=='q')
         {
             break;
+        }
+        else if(ch =='a')
+        {
+            char p[FILENAME_MAX];
+            strcpy(p,files[start+x-1].c_str());
+            p[files[start+x-1].length()]='\0';
+            string line=showfile(p);
+            int size=line.length();
+            if(y+starty>1)
+            {
+                if(y>1)
+                {
+                    y--;
+                    pos_cursor(x,y);
+                }
+
+                else if(y==1)
+                {
+                    if(starty>0)
+                    {
+                        starty--;
+                    }
+
+                    int n;
+
+                    if(cols >= size)
+                    {
+                        n=size;
+                    }
+                    else
+                    {
+                        n=starty+cols;
+                    }
+
+                    display_linen(line,n);
+                    pos_cursor(x,y);
+                }
+            }
+        }
+        else if(ch=='d')
+        {
+            char p[FILENAME_MAX];
+            strcpy(p,files[start+x-1].c_str());
+            p[files[start+x-1].length()]='\0';
+            string line=showfile(p);
+            int size=line.length();
+            if(y + starty < size )
+            {
+                    if(y<cols)
+                    {
+                        y++;
+                        pos_cursor(x,y);
+                    }
+                    else if(y==cols)
+                    {
+                        if(cols < size)
+                        {
+                            starty++;
+                            
+                        }
+                        int n;
+                        if(cols >= size)
+                        {
+                            n=size;
+                        }
+                        else
+                        {
+                            n=starty+cols;
+                        }
+                        display_linen(line,n);
+                        pos_cursor(x,y);
+                    }
+                }   
         }
         else if(ch==127)
         {
@@ -377,9 +511,19 @@ void screen()
             if(dir=='A')
             {
                 //cout<<"Hello";
-                
+                 y=1;
+                starty=0;
+                pos_cursor(x);
+                char p[FILENAME_MAX];
+                strcpy(p,files[start+x-1].c_str());
+                p[files[start+x-1].length()]='\0';
+                string line=showfile(p);
+                display_line(line);
+
                 if(x+start>1)
                 {
+                   
+                    
                     if(x>1)
                     {
                         x--;
@@ -415,8 +559,17 @@ void screen()
 
             if(dir== 'B')
             {
+                y=1;
+                starty=0;
+                pos_cursor(x);
+                char p[FILENAME_MAX];
+                strcpy(p,files[start+x-1].c_str());
+                p[files[start+x-1].length()]='\0';
+                string line=showfile(p);
+                display_line(line);
                 if(x + start < files.size() )
                 {
+                    
                     if(x<rows)
                     {
                         x++;
@@ -950,6 +1103,7 @@ void delete_dir(string file)
     if((directory=opendir(path))==NULL) // Opening source directory
     {
         cout<<"Could not access file";
+        exit(1);
         return;
     }
     dirent *dir;
