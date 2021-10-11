@@ -265,6 +265,7 @@ struct stat get_meta(char *file)
     if(stat(path,&meta)==-1)
     {
         perror("Error in stat");
+        exit(1);
     }
 
     return meta;
@@ -626,6 +627,7 @@ void command_processing(string command)
        if(tokens.size()>=3)
        {
            string destination=tokens[tokens.size()-1];
+           //cout<<destination;
            for(int i=1;i<tokens.size()-1;i++)
             {
                 if(tokens[i]==".")
@@ -1063,8 +1065,8 @@ void move_file(string path, string des)
     strcpy(destination,des.c_str());
     destination[des.length()]='\0';
 
-    cout<<source<<endl;
-    cout<<destination;
+    //cout<<source<<endl;
+    //cout<<destination;
 
 
     rename(source,destination);
@@ -1079,15 +1081,7 @@ void goto_path(string path)
     string cwd(current_directory);
     previous.push(cwd);
 
-    if(path==".")
-    {
-        return;
-    }
-    else if(path=="..")
-    {
-        path=goback();
-    }
-    else if(path[0]!='/')
+    if(path[0]!='/')
     {
         if(path[0]=='.')
             path=path.substr(2);
