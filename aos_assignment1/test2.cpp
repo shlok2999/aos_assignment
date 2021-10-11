@@ -620,6 +620,8 @@ void command_processing(string command)
         {
             tokens[i]=sys_root+tokens[i].substr(1);
         }
+        else if(tokens[i]=="..")
+            tokens[i]=goback();
     }
 
    if(tokens[0]=="copy")
