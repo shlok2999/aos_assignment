@@ -73,6 +73,7 @@ static void resizing(int sig)
     if(sig==SIGWINCH)
     {
         //Do something
+        clear();
         open_directory(current_directory);
         if(mode==0)
             pos_cursor(x);
@@ -519,7 +520,7 @@ void screen()
                 p[files[start+x-1].length()]='\0';
                 string line=showfile(p);
                 display_line(line);
-
+                pos_cursor(x);
                 if(x+start>1)
                 {
                    
@@ -567,6 +568,7 @@ void screen()
                 p[files[start+x-1].length()]='\0';
                 string line=showfile(p);
                 display_line(line);
+                pos_cursor(x);
                 if(x + start < files.size() )
                 {
                     
