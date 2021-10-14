@@ -18,7 +18,7 @@
 using namespace std;
 
 //////////////////////////////// Global Variabble ////////////////////////////////////////////// 
-string sys_root="/home/shlok";
+string sys_root="/home/";
 char esc='\x1b';
 char root[FILENAME_MAX];
 char current_directory[FILENAME_MAX];
@@ -68,7 +68,7 @@ void display_line(string line);
 static void resizing(int sig);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
-static void resizing(int sig)
+static void resizing(int sig) //For handling when window is resized
 {
     if(sig==SIGWINCH)
     {
@@ -86,39 +86,22 @@ static void resizing(int sig)
 ////////////////////////////////////// Main Function //////////////////////////////////////////
 int main()
 {
-    signal(SIGWINCH, resizing);
+    signal(SIGWINCH, resizing); //For getting signal when window is resized
     if(!getcwd(current_directory,sizeof(current_directory)))
     {
         cout<<"could not find path";
         exit(1);
     }
     current_directory[sizeof(current_directory)-1]='\0';
-    strcpy(root,current_directory);
-    //string dest="/home/shlok";
-    //string path="images";
-    //string new_directory="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images/Hello";
-    //cout<<current_directory;
+    string username=string(getlogin());
+    sys_root=sys_root+username;
+    strcpy(root,sys_root.c_str());
+    root[sys_root.length()]='\0';
+    
     open_directory(current_directory);
-    screen();
+    screen(); //Going to normal mode
     clear();
-    //printf("\033[H\033[J");
-    //string filename="/home/shlok/abc1";
-    //create_dir(filename);
-    //create_file(filename);
-    //string cwd(current_directory);
-    //cout<<search(filename,cwd)<<endl;
-    //goto_path(dest);
-    //move_file(path,dest);
-    //delete_dir(path);
-    //rename_file(path,dest);
-    //delete_file(path);
-    //copy_directory(path,dest);
-    //newdir(new_directory);
-    //cout<<path<<endl<<dest;
-    //copyfile(path,dest);
-    //cout<<current_directory<<" ";
-    //cout<<root<<endl;
-    //open_directory(current_directory);
+    
 
 }
 /////////////////////////////// Clear the screen ////////////////////////////////////////////////
@@ -156,10 +139,10 @@ void open_directory(char *path)
     closedir(directory);
 
 
-    //sort(files.begin(),files.end());
+    
 
-    getWindowSize();
-    //int total_lines=files.size();
+    getWindowSize(); //Getting details of terminal size
+    
     start=0;
     starty=0;
     display(); // displays all the directory in the cuurent directory
@@ -187,11 +170,11 @@ void display()
     pos_cursor(rows+1);
     cout<<"----NORMAL MODE";
 
-    //cin.get();
+    
 }
 
 
-string showfile(char *path)
+string showfile(char *path) //It is used to get information which needs to be displayed AND return it in form of string
 {
         absolutePath=0;
         struct stat meta=get_meta(path);
@@ -316,7 +299,7 @@ struct stat get_meta(char *file)
 };
 /////////////////////////////////////// Get window size ////////////////////////////////////////
 
-void getWindowSize()
+void getWindowSize() //For getting dimension of terminal screen
 {
     struct winsize window;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &window);
@@ -325,7 +308,7 @@ void getWindowSize()
 }
 
 /////////////////////////// Teriminal Window Cursor Handling////////////////////////////////////
-string goback()
+string goback() // this is udes to go back 1 level up in heirarchy of directory
 {
     string cwd(current_directory);
     reverse(cwd.begin(),cwd.end());
@@ -342,7 +325,7 @@ string goback()
     return cwd;
 }
 
-void displayn(int n)
+void displayn(int n) //This funnction is used to print normal mode and the file should remain within the row boundary
 {
     clear();
     for(int i=start;i<n;i++)
@@ -362,7 +345,7 @@ void displayn(int n)
 
 }
 
-void display_linen(string line,int n)
+void display_linen(string line,int n) //This is used to diplay a line in normal mode. used while horizontal scrolling
 {
     pos_cursor(x);
     int i;
@@ -372,28 +355,28 @@ void display_linen(string line,int n)
     }
 }
 
-void pos_cursor(int x)
+void pos_cursor(int x) //Used to postion of cursor at starting of line.
 {
     cout<<"\x1b["<<x<<";1H";
 }
 
-void pos_cursor(int x,int y)
+void pos_cursor(int x,int y) //Used to postion cusror anywhere on screeen
 {
     cout<<"\x1b["<<x<<";"<<y<<"H";
 }
 
-void DisableScreenMode()
+void DisableScreenMode() //Used to set termios in its default maode
 {
       tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_setting);
 }
 
-void screen()
+void screen() //Normal Mode
 {
     mode=0;
-    //write(STDOUT_FILENO, "\x1b[H", 3);
+
     pos_cursor(x);
     tcgetattr(STDIN_FILENO, &original_setting);
-    atexit(DisableScreenMode);
+    atexit(DisableScreenMode); // Making sure that even if program crashes termios is set back to default value
     new_setting=original_setting;
     new_setting.c_lflag &= ~(ECHO | ICANON);
     tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
@@ -409,7 +392,7 @@ void screen()
             open_directory(current_directory);
             pos_cursor(x);
         }
-        else if(ch == ':')
+        else if(ch == ':') //Entering Command Mode
         {
             mode=1;
             commandmode();
@@ -417,11 +400,11 @@ void screen()
             pos_cursor(x);
             mode=0;
         }
-        else if(ch=='q')
+        else if(ch=='q') //To quit the program
         {
             break;
         }
-        else if(ch =='a')
+        else if(ch =='a')// For scrolling line left side
         {
             char p[FILENAME_MAX];
             strcpy(p,files[start+x-1].c_str());
@@ -459,7 +442,7 @@ void screen()
                 }
             }
         }
-        else if(ch=='d')
+        else if(ch=='d')//For scrolling line right side
         {
             char p[FILENAME_MAX];
             strcpy(p,files[start+x-1].c_str());
@@ -494,7 +477,84 @@ void screen()
                     }
                 }   
         }
-        else if(ch==127)
+        else if(ch=='l')
+        {
+            y=1;
+                starty=0;
+                pos_cursor(x);
+                char p[FILENAME_MAX];
+                strcpy(p,files[start+x-1].c_str());
+                p[files[start+x-1].length()]='\0';
+                string line=showfile(p);
+                display_line(line);
+                pos_cursor(x);
+                if(x + start < files.size() )
+                {
+                    
+                    
+                    if(x<=rows)
+                    {
+                        if(rows < files.size())
+                        {
+                            start++;
+                            x=1;
+                        }
+                        int n;
+                        if(rows >= files.size())
+                        {
+                            n=start+files.size();
+                        }
+                        else
+                        {
+                            n=start+rows;
+                        }
+                        displayn(n);
+                        pos_cursor(x);
+                    }
+                }
+        }
+        else if(ch=='k')
+        {
+             y=1;
+                starty=0;
+                pos_cursor(x);
+                char p[FILENAME_MAX];
+                strcpy(p,files[start+x-1].c_str());
+                p[files[start+x-1].length()]='\0';
+                string line=showfile(p);
+                display_line(line);
+                pos_cursor(x);
+                if(x+start>1)
+                {
+                   
+                    
+                    
+
+                    if(x==1)
+                    {
+                        if(start>0)
+                        {
+                            start--;
+                            x=1;
+                        }
+
+                        int n;
+
+                        if(rows >= files.size())
+                        {
+                            n=start+files.size();
+                        }
+                        else
+                        {
+                            n=start+rows;
+                        }
+
+                        displayn(n);
+                        pos_cursor(x);
+                    }
+                }   
+        }
+        else if(ch==127) //If backspace is pressed
         {
             string current=goback();
             string cwd(current_directory);
@@ -509,7 +569,7 @@ void screen()
         {
             ch=cin.get();
             char dir=cin.get();
-            if(dir=='A')
+            if(dir=='A') //Up arrow key is pressed
             {
                 //cout<<"Hello";
                  y=1;
@@ -558,7 +618,7 @@ void screen()
 
             }
 
-            if(dir== 'B')
+            if(dir== 'B') //Down arrow key is pressed
             {
                 y=1;
                 starty=0;
@@ -599,7 +659,7 @@ void screen()
                 }
             }
 
-            if(dir=='C')
+            if(dir=='C') //Right arrow key is pressed
             {
                 if(! next_f.empty())
                 {
@@ -614,7 +674,7 @@ void screen()
                 }
             }
 
-            if(dir=='D')
+            if(dir=='D') //Left arrow key is pressed
             {
                 if(!previous.empty())
                 {
@@ -661,7 +721,7 @@ void screen()
                 }
                 else
                 {
-                    pid_t pid=fork();
+                    pid_t pid=fork(); //Opening a new process so that file explorer doesn't stops
                     if(pid==0)
                     {
                         execl(EXECL_PATH,EXECL_NAME,current.c_str(),(char *) 0);
@@ -684,30 +744,33 @@ void refresh()
 
 }
 
-void commandmode()
+void commandmode() //command Mode
 {
     refresh();
     while(1)
     {
-        char ch;
-        ch= cin.get();
+        DisableScreenMode();
+        string command;
+        getline(cin,command);
         refresh();
-        if(ch == ':')
-        {
-            DisableScreenMode();
-            cout<<"Enter command :";
-            string command;
-            getline(cin,command);
-            command_processing(command);
-            tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
-        }
-        else if(ch=='q')
+        if(command=="q") //Quits the main program
         {
             exit(0);
         }
-        else if(ch == esc)
+        else if(command== "\x1b")
         {
+            tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
             return;
+        }
+        else
+        {
+            
+            //cout<<"Enter command :";
+            //cout<<ch;
+            //string command;
+            
+            command_processing(command);
+            
         }
     }
 }
@@ -715,7 +778,7 @@ void commandmode()
 
 ////////////////////////////////// Command Processing /////////////////////////////////////////
 
-void command_processing(string command)
+void command_processing(string command)//Strings are tokenized and the the commans is called accordingly
 {
     int flag=0;
     int count=0;
@@ -842,22 +905,47 @@ void command_processing(string command)
    }
    else if(tokens[0]=="rename")
    {
+       if(tokens.size()!=3)
+       {
+           cout<<"Error";
+           return;
+       }
        rename_file(tokens[1],tokens[2]);
    }
    else if(tokens[0]=="create_file")
    {
+       if(tokens.size()!=3)
+       {
+           cout<<"Error";
+           return;
+       }
        create_file(tokens[1],tokens[2]);
    }
    else if(tokens[0]=="create_dir")
    {
+       if(tokens.size()!=3)
+       {
+           cout<<"Error";
+           return;
+       }
        create_dir(tokens[1],tokens[2]);
    }
    else if(tokens[0]=="goto")
    {
+       if(tokens.size()!=2)
+       {
+           cout<<"Error";
+           return;
+       }
        goto_path(tokens[1]);
    }
    else if(tokens[0]=="search")
    {
+       if(tokens.size()!=2)
+       {
+           cout<<"Error";
+           return;
+       }
        string cwd(current_directory);
        bool ans=search(tokens[1],cwd);
        if(ans)
@@ -867,11 +955,26 @@ void command_processing(string command)
    }
    else if(tokens[0]=="delete_dir")
    {
+       if(tokens.size()!=2)
+       {
+           cout<<"Error";
+           return;
+       }
        delete_dir(tokens[1]);
    }
    else if(tokens[0]=="delete_file")
    {
+       if(tokens.size()!=2)
+       {
+           cout<<"Error";
+           return;
+       }
        delete_file(tokens[1]);
+   }
+   else
+   {
+       cout<<"Error";
+       return;
    }
 
 }
