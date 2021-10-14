@@ -735,25 +735,28 @@ void commandmode() //command Mode
     refresh();
     while(1)
     {
-        char ch;
-        ch= cin.get();
+        DisableScreenMode();
+        string command;
+        getline(cin,command);
         refresh();
-        if(ch == ':')
-        {
-            DisableScreenMode();
-            //cout<<"Enter command :";
-            string command;
-            getline(cin,command);
-            command_processing(command);
-            tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
-        }
-        else if(ch=='q') //Quits the main program
+        if(command=="q") //Quits the main program
         {
             exit(0);
         }
-        else if(ch == esc)
+        else if(command== "\x1b")
         {
+            tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
             return;
+        }
+        else
+        {
+            
+            //cout<<"Enter command :";
+            //cout<<ch;
+            //string command;
+            
+            command_processing(command);
+            
         }
     }
 }
