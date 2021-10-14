@@ -732,18 +732,23 @@ void refresh()
 
 void commandmode() //command Mode
 {
+    string command="";
+    struct termios dummy=original_setting;
+    dummy.c_lflag &= ~(ICANON) ;
+    tcsetattr(STDIN_FILENO,TCSAFLUSH, &dummy);
     refresh();
     while(1)
     {
-        DisableScreenMode();
-        string command;
-        getline(cin,command);
+        //DisableScreenMode();
+        
+        char ch;
+        cin.get(ch);
         refresh();
-        if(command=="q") //Quits the main program
+        if(ch=='q') //Quits the main program
         {
             exit(0);
         }
-        else if(command== "\x1b")
+        else if(ch== '\x1b')
         {
             tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
             return;
@@ -751,12 +756,33 @@ void commandmode() //command Mode
         else
         {
             
-            //cout<<"Enter command :";
-            //cout<<ch;
-            //string command;
-            
+            command+=ch;
+            cout<<ch;
+            while(1)
+            {
+                cin.get(ch);
+                if(ch==127 && command!="")
+                {
+                    pos_cursor(rows+2);
+                    cout<<"\x1b[0J";
+                    command.pop_back();
+                    cout<<command;
+                }
+                else if(ch==127)
+                    continue;
+                else if(ch == esc)
+                {
+                    tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
+                    return;
+                }
+                else if(ch==10)
+                    break;
+                else
+                    command=command+ch;
+            }
+            //cout<<command;
             command_processing(command);
-            
+            command="";
         }
     }
 }
