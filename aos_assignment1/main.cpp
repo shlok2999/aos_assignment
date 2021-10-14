@@ -18,7 +18,7 @@
 using namespace std;
 
 //////////////////////////////// Global Variabble ////////////////////////////////////////////// 
-string sys_root="/home/shlok";
+string sys_root="/home/";
 char esc='\x1b';
 char root[FILENAME_MAX];
 char current_directory[FILENAME_MAX];
@@ -93,7 +93,10 @@ int main()
         exit(1);
     }
     current_directory[sizeof(current_directory)-1]='\0';
-    strcpy(root,current_directory);
+    string username=string(getlogin());
+    sys_root=sys_root+username;
+    strcpy(root,sys_root.c_str());
+    root[sys_root.length()]='\0';
     
     open_directory(current_directory);
     screen(); //Going to normal mode
@@ -473,6 +476,69 @@ void screen() //Normal Mode
                         pos_cursor(x,y);
                     }
                 }   
+        }
+        else if(ch=='l')
+        {
+            y=1;
+            starty=0;
+            pos_cursor(x);
+            char p[FILENAME_MAX];
+            strcpy(p,files[start+x-1].c_str());
+            p[files[start+x-1].length()]='\0';
+            string line=showfile(p);
+            display_line(line);
+            pos_cursor(x);
+            if(x + start < files.size() )
+            {
+                    
+                
+                if(x==rows)
+                {
+                    if(rows < files.size())
+                    {
+                        start++;
+                            
+                    }
+                    int n;
+                    if(rows >= files.size())
+                    {
+                        n=files.size();
+                    }
+                    else
+                    {
+                        n=start+rows;
+                    }
+                    displayn(n);
+                    pos_cursor(x);
+                }
+            }
+        }
+        else if(ch=='k')
+        {
+            if(x+start>1)
+            {
+                if(x==1)
+                {
+                    if(start>0)
+                    {
+                        start--;
+                    }
+
+                    int n;
+
+                    if(rows >= files.size())
+                    {
+                        n=files.size();
+                    }
+                    else
+                    {
+                        n=start+rows;
+                    }
+
+                    displayn(n);
+                    pos_cursor(x);
+                }
+            }   
         }
         else if(ch==127) //If backspace is pressed
         {
