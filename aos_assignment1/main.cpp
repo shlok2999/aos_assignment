@@ -27,9 +27,10 @@ stack<string> previous;
 stack<string> next_f;
 int absolutePath;
 struct termios original_setting,new_setting;
-long long int start;
-long long int rows;
-long long int x;
+long long int start , starty;
+long long int rows , cols;
+long long int x , y;
+int mode ;
 #define EXECL_PATH "/usr/bin/xdg-open"
 #define EXECL_NAME "xdg-open"
 
@@ -51,22 +52,41 @@ bool search(string file,string path);
 void create_file(string filename,string file);
 void create_dir(string filename,string file);
 void screen();
-void showfile(char *path);
+string showfile(char *path);
 void getWindowSize();
 void DisableScreenMode();
 void pos_cursor(int x);
+void pos_cursor(int x,int y);
 void clear();
 void displayn(int n);
 string goback();
 void commandmode();
 void refresh();
 void command_processing(string command);
+void display_linen(string line,int n);
+void display_line(string line);
+static void resizing(int sig);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
+static void resizing(int sig) //For handling when window is resized
+{
+    if(sig==SIGWINCH)
+    {
+        //Do something
+        clear();
+        open_directory(current_directory);
+        if(mode==0)
+            pos_cursor(x);
+        else
+            refresh();
+    }
+}
+
 
 ////////////////////////////////////// Main Function //////////////////////////////////////////
 int main()
 {
+    signal(SIGWINCH, resizing); //For getting signal when window is resized
     if(!getcwd(current_directory,sizeof(current_directory)))
     {
         cout<<"could not find path";
@@ -74,31 +94,11 @@ int main()
     }
     current_directory[sizeof(current_directory)-1]='\0';
     strcpy(root,current_directory);
-    //string dest="/home/shlok";
-    //string path="images";
-    //string new_directory="/home/shlok/Demos/Linux-Terminal-based-File-Explorer-master/images/Hello";
-    //cout<<current_directory;
+    
     open_directory(current_directory);
-    screen();
+    screen(); //Going to normal mode
     clear();
-    //printf("\033[H\033[J");
-    //string filename="/home/shlok/abc1";
-    //create_dir(filename);
-    //create_file(filename);
-    //string cwd(current_directory);
-    //cout<<search(filename,cwd)<<endl;
-    //goto_path(dest);
-    //move_file(path,dest);
-    //delete_dir(path);
-    //rename_file(path,dest);
-    //delete_file(path);
-    //copy_directory(path,dest);
-    //newdir(new_directory);
-    //cout<<path<<endl<<dest;
-    //copyfile(path,dest);
-    //cout<<current_directory<<" ";
-    //cout<<root<<endl;
-    //open_directory(current_directory);
+    
 
 }
 /////////////////////////////// Clear the screen ////////////////////////////////////////////////
@@ -114,6 +114,7 @@ void clear()
 void open_directory(char *path)
 {
     x=1;
+    y=1;
     DIR *directory;
     if((directory= opendir(path))== NULL)
     {
@@ -135,11 +136,12 @@ void open_directory(char *path)
     closedir(directory);
 
 
-    //sort(files.begin(),files.end());
+    
 
-    getWindowSize();
-    //int total_lines=files.size();
+    getWindowSize(); //Getting details of terminal size
+    
     start=0;
+    starty=0;
     display(); // displays all the directory in the cuurent directory
 
 }
@@ -156,92 +158,114 @@ void display()
         temp[files[i].length()]='\0';
         //cout<<temp<<endl;
         
-        showfile(temp);  
+        string line=showfile(temp);
+        display_line(line);
+        cout<<"\n";  
         //cout<<files[i]<<endl;
     }
 
     pos_cursor(rows+1);
     cout<<"----NORMAL MODE";
 
-    //cin.get();
+    
 }
 
 
-void showfile(char *path)
+string showfile(char *path) //It is used to get information which needs to be displayed AND return it in form of string
 {
-    absolutePath=0;
+        absolutePath=0;
         struct stat meta=get_meta(path);
-
+        string line="";
         //if directory
         if(S_ISDIR(meta.st_mode))
-            printf("d");
+            line+="d";
         else
-            printf("-");
+            line+="-";
         //read mode for user?
         if(meta.st_mode & S_IRUSR)
-            printf("r");
+            line+="r";
         else
-            printf("-");
+            line+="-";
         //write mode for user?
         if(meta.st_mode & S_IWUSR)
-            printf("w");
+            line+="w";
         else
-            printf("-");
+            line+="-";
         //executable mode for user?
         if(meta.st_mode & S_IXUSR)
-            printf("x");
+            line+="x";
         else
-            printf("-");
+            line+="-";
         //read mode for grp?
         if(meta.st_mode & S_IRGRP)
-            printf("r");
+            line+="r";
         else
-            printf("-");
+            line+="-";
         //write mode for grp?
         if(meta.st_mode & S_IWGRP)
-            printf("w");
+            line+="w";
         else
-            printf("-");
+            line+="-";
         //executable mode for grp?
         if(meta.st_mode & S_IXGRP)
-            printf("x");
+            line+="x";
         else
-            printf("-");
+            line+="-";
         //read mode for other?
         if(meta.st_mode & S_IROTH)
-            printf("r");
+            line+="r";
         else
-            printf("-");
+            line+="-";
         //write mode for other?
         if(meta.st_mode & S_IWOTH)
-            printf("w");
+            line+="w";
         else
-            printf("-");
+            line+="-";
         //executable mode for other?
         if(meta.st_mode & S_IXOTH)
-            printf("x");
+            line+="x";
         else
-            printf("-");
+            line+="-";
         
         //Getting user name and group name
-
+        line+="  ";
         struct passwd *user=getpwuid(meta.st_uid);
         if(user)
-            printf("\t%-9s",user->pw_name);
+            line+=user->pw_name;
+        line+="  ";
         struct group *grp=getgrgid(meta.st_gid);
         if(grp)
-            printf("%-9s",grp->gr_name);
+        {    line+=grp->gr_name;
+             line+="  ";
+        }
         
         //Getting the modified time
         char *mod_time=ctime(&meta.st_mtime);
         mod_time[strlen(mod_time)-1]='\0';
-        printf("%-10s",mod_time);
-
-        printf("%10.2fK", ((double)meta.st_size) / 1024);
-
+        string time(mod_time);
+        line+=time;
+        line+="  ";
+        //printf("%10.2fK", ((double)meta.st_size) / 1024);
+        float temp=((float)meta.st_size) / 1024;
+        string stemp=to_string(temp);
+        int pos=stemp.find('.');
+        stemp=stemp.substr(0,pos+3);
+        line=line+stemp+"KB";
+        line+="  ";
         //Display File name
-        printf("\t%-10s\n",path);
+        string p(path);
+        line+=p;
         //printf("a");
+        return line;
+}
+
+////////////////////////////////////// Display line //////////////////////////////////////////////////
+
+void display_line(string line)
+{
+    int n=line.length();
+    for(int i=0;i<n && i<cols ;i++)
+        cout<<line[i];
 }
 
 /////////////////////////////////// Gets all the meta data about the file ///////////////////////////
@@ -272,15 +296,16 @@ struct stat get_meta(char *file)
 };
 /////////////////////////////////////// Get window size ////////////////////////////////////////
 
-void getWindowSize()
+void getWindowSize() //For getting dimension of terminal screen
 {
     struct winsize window;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &window);
     rows=window.ws_row-3;
+    cols= window.ws_col;
 }
 
 /////////////////////////// Teriminal Window Cursor Handling////////////////////////////////////
-string goback()
+string goback() // this is udes to go back 1 level up in heirarchy of directory
 {
     string cwd(current_directory);
     reverse(cwd.begin(),cwd.end());
@@ -297,7 +322,7 @@ string goback()
     return cwd;
 }
 
-void displayn(int n)
+void displayn(int n) //This funnction is used to print normal mode and the file should remain within the row boundary
 {
     clear();
     for(int i=start;i<n;i++)
@@ -307,8 +332,9 @@ void displayn(int n)
         temp[files[i].length()]='\0';
         //cout<<temp<<endl;
         
-        showfile(temp);  
-        //cout<<files[i]<<endl;
+        string line=showfile(temp);
+        display_line(line);  
+        cout<<"\n";
     }
 
     pos_cursor(rows+1);
@@ -316,24 +342,38 @@ void displayn(int n)
 
 }
 
+void display_linen(string line,int n) //This is used to diplay a line in normal mode. used while horizontal scrolling
+{
+    pos_cursor(x);
+    int i;
+    for(i=starty;i<n;i++)
+    {
+        cout<<line[i];
+    }
+}
 
-
-void pos_cursor(int x)
+void pos_cursor(int x) //Used to postion of cursor at starting of line.
 {
     cout<<"\x1b["<<x<<";1H";
 }
 
-void DisableScreenMode()
+void pos_cursor(int x,int y) //Used to postion cusror anywhere on screeen
+{
+    cout<<"\x1b["<<x<<";"<<y<<"H";
+}
+
+void DisableScreenMode() //Used to set termios in its default maode
 {
       tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_setting);
 }
 
-void screen()
+void screen() //Normal Mode
 {
-    //write(STDOUT_FILENO, "\x1b[H", 3);
+    mode=0;
+
     pos_cursor(x);
     tcgetattr(STDIN_FILENO, &original_setting);
-    atexit(DisableScreenMode);
+    atexit(DisableScreenMode); // Making sure that even if program crashes termios is set back to default value
     new_setting=original_setting;
     new_setting.c_lflag &= ~(ECHO | ICANON);
     tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
@@ -349,17 +389,92 @@ void screen()
             open_directory(current_directory);
             pos_cursor(x);
         }
-        else if(ch == ':')
+        else if(ch == ':') //Entering Command Mode
         {
+            mode=1;
             commandmode();
             open_directory(current_directory);
             pos_cursor(x);
+            mode=0;
         }
-        else if(ch=='q')
+        else if(ch=='q') //To quit the program
         {
             break;
         }
-        else if(ch==127)
+        else if(ch =='a')// For scrolling line left side
+        {
+            char p[FILENAME_MAX];
+            strcpy(p,files[start+x-1].c_str());
+            p[files[start+x-1].length()]='\0';
+            string line=showfile(p);
+            int size=line.length();
+            if(y+starty>1)
+            {
+                if(y>1)
+                {
+                    y--;
+                    pos_cursor(x,y);
+                }
+
+                else if(y==1)
+                {
+                    if(starty>0)
+                    {
+                        starty--;
+                    }
+
+                    int n;
+
+                    if(cols >= size)
+                    {
+                        n=size;
+                    }
+                    else
+                    {
+                        n=starty+cols;
+                    }
+
+                    display_linen(line,n);
+                    pos_cursor(x,y);
+                }
+            }
+        }
+        else if(ch=='d')//For scrolling line right side
+        {
+            char p[FILENAME_MAX];
+            strcpy(p,files[start+x-1].c_str());
+            p[files[start+x-1].length()]='\0';
+            string line=showfile(p);
+            int size=line.length();
+            if(y + starty < size )
+            {
+                    if(y<cols)
+                    {
+                        y++;
+                        pos_cursor(x,y);
+                    }
+                    else if(y==cols)
+                    {
+                        if(cols < size)
+                        {
+                            starty++;
+                            
+                        }
+                        int n;
+                        if(cols >= size)
+                        {
+                            n=size;
+                        }
+                        else
+                        {
+                            n=starty+cols;
+                        }
+                        display_linen(line,n);
+                        pos_cursor(x,y);
+                    }
+                }   
+        }
+        else if(ch==127) //If backspace is pressed
         {
             string current=goback();
             string cwd(current_directory);
@@ -374,12 +489,22 @@ void screen()
         {
             ch=cin.get();
             char dir=cin.get();
-            if(dir=='A')
+            if(dir=='A') //Up arrow key is pressed
             {
                 //cout<<"Hello";
-                
+                 y=1;
+                starty=0;
+                pos_cursor(x);
+                char p[FILENAME_MAX];
+                strcpy(p,files[start+x-1].c_str());
+                p[files[start+x-1].length()]='\0';
+                string line=showfile(p);
+                display_line(line);
+                pos_cursor(x);
                 if(x+start>1)
                 {
+                   
+                    
                     if(x>1)
                     {
                         x--;
@@ -413,10 +538,20 @@ void screen()
 
             }
 
-            if(dir== 'B')
+            if(dir== 'B') //Down arrow key is pressed
             {
+                y=1;
+                starty=0;
+                pos_cursor(x);
+                char p[FILENAME_MAX];
+                strcpy(p,files[start+x-1].c_str());
+                p[files[start+x-1].length()]='\0';
+                string line=showfile(p);
+                display_line(line);
+                pos_cursor(x);
                 if(x + start < files.size() )
                 {
+                    
                     if(x<rows)
                     {
                         x++;
@@ -444,7 +579,7 @@ void screen()
                 }
             }
 
-            if(dir=='C')
+            if(dir=='C') //Right arrow key is pressed
             {
                 if(! next_f.empty())
                 {
@@ -459,7 +594,7 @@ void screen()
                 }
             }
 
-            if(dir=='D')
+            if(dir=='D') //Left arrow key is pressed
             {
                 if(!previous.empty())
                 {
@@ -506,7 +641,7 @@ void screen()
                 }
                 else
                 {
-                    pid_t pid=fork();
+                    pid_t pid=fork(); //Opening a new process so that file explorer doesn't stops
                     if(pid==0)
                     {
                         execl(EXECL_PATH,EXECL_NAME,current.c_str(),(char *) 0);
@@ -529,7 +664,7 @@ void refresh()
 
 }
 
-void commandmode()
+void commandmode() //command Mode
 {
     refresh();
     while(1)
@@ -540,13 +675,13 @@ void commandmode()
         if(ch == ':')
         {
             DisableScreenMode();
-            cout<<"Enter command :";
+            //cout<<"Enter command :";
             string command;
             getline(cin,command);
             command_processing(command);
             tcsetattr(STDIN_FILENO,TCSAFLUSH, &new_setting);
         }
-        else if(ch=='q')
+        else if(ch=='q') //Quits the main program
         {
             exit(0);
         }
@@ -560,7 +695,7 @@ void commandmode()
 
 ////////////////////////////////// Command Processing /////////////////////////////////////////
 
-void command_processing(string command)
+void command_processing(string command)//Strings are tokenized and the the commans is called accordingly
 {
     int flag=0;
     int count=0;
@@ -687,22 +822,47 @@ void command_processing(string command)
    }
    else if(tokens[0]=="rename")
    {
+       if(tokens.size()!=3)
+       {
+           cout<<"Error";
+           return;
+       }
        rename_file(tokens[1],tokens[2]);
    }
    else if(tokens[0]=="create_file")
    {
+       if(tokens.size()!=3)
+       {
+           cout<<"Error";
+           return;
+       }
        create_file(tokens[1],tokens[2]);
    }
    else if(tokens[0]=="create_dir")
    {
+       if(tokens.size()!=3)
+       {
+           cout<<"Error";
+           return;
+       }
        create_dir(tokens[1],tokens[2]);
    }
    else if(tokens[0]=="goto")
    {
+       if(tokens.size()!=2)
+       {
+           cout<<"Error";
+           return;
+       }
        goto_path(tokens[1]);
    }
    else if(tokens[0]=="search")
    {
+       if(tokens.size()!=2)
+       {
+           cout<<"Error";
+           return;
+       }
        string cwd(current_directory);
        bool ans=search(tokens[1],cwd);
        if(ans)
@@ -712,11 +872,26 @@ void command_processing(string command)
    }
    else if(tokens[0]=="delete_dir")
    {
+       if(tokens.size()!=2)
+       {
+           cout<<"Error";
+           return;
+       }
        delete_dir(tokens[1]);
    }
    else if(tokens[0]=="delete_file")
    {
+       if(tokens.size()!=2)
+       {
+           cout<<"Error";
+           return;
+       }
        delete_file(tokens[1]);
+   }
+   else
+   {
+       cout<<"Error";
+       return;
    }
 
 }
@@ -950,6 +1125,7 @@ void delete_dir(string file)
     if((directory=opendir(path))==NULL) // Opening source directory
     {
         cout<<"Could not access file";
+        exit(1);
         return;
     }
     dirent *dir;
