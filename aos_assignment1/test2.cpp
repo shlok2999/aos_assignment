@@ -488,57 +488,38 @@ void screen() //Normal Mode
             string line=showfile(p);
             display_line(line);
             pos_cursor(x);
-            if(x + start < files.size() )
+            if(start+rows>= files.size())
+                continue;
+            else
             {
-                    
-                
-                if(x==rows)
-                {
-                    if(rows < files.size())
-                    {
-                        start++;
-                            
-                    }
-                    int n;
-                    if(rows >= files.size())
-                    {
-                        n=files.size();
-                    }
-                    else
-                    {
-                        n=start+rows;
-                    }
-                    displayn(n);
-                    pos_cursor(x);
-                }
+                start++;
+                int n;
+                n=start+rows;
+                displayn(n);
+                pos_cursor(x);
             }
         }
         else if(ch=='k')
         {
-            if(x+start>1)
+            y=1;
+            starty=0;
+            pos_cursor(x);
+            char p[FILENAME_MAX];
+            strcpy(p,files[start+x-1].c_str());
+            p[files[start+x-1].length()]='\0';
+            string line=showfile(p);
+            display_line(line);
+            pos_cursor(x); 
+            if(start==0)
+                continue;
+            else
             {
-                if(x==1)
-                {
-                    if(start>0)
-                    {
-                        start--;
-                    }
-
-                    int n;
-
-                    if(rows >= files.size())
-                    {
-                        n=files.size();
-                    }
-                    else
-                    {
-                        n=start+rows;
-                    }
-
-                    displayn(n);
-                    pos_cursor(x);
-                }
-            }   
+                start--;
+                int n;
+                n=start+rows;
+                displayn(n);
+                pos_cursor(x);
+            }
         }
         else if(ch==127) //If backspace is pressed
         {

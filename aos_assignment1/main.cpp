@@ -488,57 +488,38 @@ void screen() //Normal Mode
             string line=showfile(p);
             display_line(line);
             pos_cursor(x);
-            if(x + start < files.size() )
+            if(start+rows>= files.size())
+                continue;
+            else
             {
-                    
-                
-                if(x==rows)
-                {
-                    if(rows < files.size())
-                    {
-                        start++;
-                            
-                    }
-                    int n;
-                    if(rows >= files.size())
-                    {
-                        n=files.size();
-                    }
-                    else
-                    {
-                        n=start+rows;
-                    }
-                    displayn(n);
-                    pos_cursor(x);
-                }
+                start++;
+                int n;
+                n=start+rows;
+                displayn(n);
+                pos_cursor(x);
             }
         }
         else if(ch=='k')
         {
-            if(x+start>1)
+            y=1;
+            starty=0;
+            pos_cursor(x);
+            char p[FILENAME_MAX];
+            strcpy(p,files[start+x-1].c_str());
+            p[files[start+x-1].length()]='\0';
+            string line=showfile(p);
+            display_line(line);
+            pos_cursor(x); 
+            if(start==0)
+                continue;
+            else
             {
-                if(x==1)
-                {
-                    if(start>0)
-                    {
-                        start--;
-                    }
-
-                    int n;
-
-                    if(rows >= files.size())
-                    {
-                        n=files.size();
-                    }
-                    else
-                    {
-                        n=start+rows;
-                    }
-
-                    displayn(n);
-                    pos_cursor(x);
-                }
-            }   
+                start--;
+                int n;
+                n=start+rows;
+                displayn(n);
+                pos_cursor(x);
+            }
         }
         else if(ch==127) //If backspace is pressed
         {
@@ -886,11 +867,14 @@ void command_processing(string command)//Strings are tokenized and the the comma
                 else
                     copyfile(tokens[i],destination);
             }
+             open_directory(current_directory);
+            refresh();
+            cout<<command<<endl;
        }
        else
        {
            perror("Wrong no.of argument");
-           exit(1);
+           return;
        }
    }
    else if(tokens[0]=="move")
@@ -908,11 +892,14 @@ void command_processing(string command)//Strings are tokenized and the the comma
                 }
                 move_file(tokens[i],destination);
             }
+            open_directory(current_directory);
+            refresh();
+            cout<<command<<endl;
        }
        else
        {
            perror("Wrong no.of argument");
-           exit(1);
+           return;
        }
    }
    else if(tokens[0]=="rename")
@@ -923,6 +910,9 @@ void command_processing(string command)//Strings are tokenized and the the comma
            return;
        }
        rename_file(tokens[1],tokens[2]);
+       open_directory(current_directory);
+       refresh();
+       cout<<command<<endl;
    }
    else if(tokens[0]=="create_file")
    {
@@ -932,6 +922,9 @@ void command_processing(string command)//Strings are tokenized and the the comma
            return;
        }
        create_file(tokens[1],tokens[2]);
+       open_directory(current_directory);
+       refresh();
+       cout<<command<<endl;
    }
    else if(tokens[0]=="create_dir")
    {
@@ -941,6 +934,9 @@ void command_processing(string command)//Strings are tokenized and the the comma
            return;
        }
        create_dir(tokens[1],tokens[2]);
+       open_directory(current_directory);
+       refresh();
+       cout<<command<<endl;
    }
    else if(tokens[0]=="goto")
    {
@@ -950,6 +946,9 @@ void command_processing(string command)//Strings are tokenized and the the comma
            return;
        }
        goto_path(tokens[1]);
+       open_directory(current_directory);
+       refresh();
+       cout<<command<<endl;
    }
    else if(tokens[0]=="search")
    {
@@ -973,6 +972,11 @@ void command_processing(string command)//Strings are tokenized and the the comma
            return;
        }
        delete_dir(tokens[1]);
+       
+       open_directory(current_directory);
+       refresh();
+       cout<<command<<endl;
+       
    }
    else if(tokens[0]=="delete_file")
    {
@@ -982,6 +986,10 @@ void command_processing(string command)//Strings are tokenized and the the comma
            return;
        }
        delete_file(tokens[1]);
+       
+       open_directory(current_directory);
+       refresh();
+       cout<<command<<endl;
    }
    else
    {
@@ -1086,7 +1094,7 @@ void newdir(string file,struct stat meta)
     path[file.length()]='\0';
     if(mkdir(path,meta.st_mode)==-1)
     {
-        cout<<"Unable to create file";
+        //cout<<"Unable to create file";
     }
 }
 
@@ -1147,7 +1155,7 @@ void copy_directory(string path,string des)
         temp_files.push_back(string(dir->d_name));
     }
     closedir(directory);
-
+    //cout<<destination;
     struct stat s=get_meta(source);
     newdir(destination,s); // Creating the folder
 
@@ -1199,7 +1207,7 @@ void delete_file(string file)
 
 void delete_dir(string file)
 {
-    string cwd(current_directory);
+     string cwd(current_directory);
     if(file[0]!='/')
     {
         if(file[0]=='.')
@@ -1292,8 +1300,8 @@ void rename_file(string path,string des)
     
     strcpy(destination,des.c_str());
     destination[des.length()]='\0';
-    cout<<source<<endl;
-    cout<<destination;
+    //cout<<source<<endl;
+    //cout<<destination;
     rename(source,destination);
 }
 
