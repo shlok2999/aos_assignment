@@ -20,14 +20,8 @@ int main(int argc,char const *argv[])
         exit(1);
     }
     char* address;
-    if(argc>1)
-    {
-        strcpy(address,argv[1]);
-        cout<<address<<endl;
-    }
-    else
-        address="127.0.0.1";
-    struct hostent *server = gethostbyname(address);
+ 
+    struct hostent *server = gethostbyname(argv[1]);
     struct sockaddr_in socket_address;
     socket_address.sin_family=AF_INET;
     socket_address.sin_port=htons(port);
@@ -36,7 +30,12 @@ int main(int argc,char const *argv[])
     //memset(&(socket_address.sin_zero),0,8);
     char hello[1024]="Hello Server";
     cout<<"";
-    cout<<connect(client, (struct sockaddr*)&socket_address,sizeof(socket_address));
+    int newconnect=connect(client, (struct sockaddr*)&socket_address,sizeof(socket_address));
+    if(newconnect<0)
+    {
+        cout<<"Error in making connection";
+        exit(1);
+    }
     
     //cout<<hello;
     send(client , hello , strlen(hello) , 0 );
