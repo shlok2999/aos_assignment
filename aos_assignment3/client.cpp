@@ -19,7 +19,15 @@ int main(int argc,char const *argv[])
         cout<<"Socket creation Failed";
         exit(1);
     }
-    struct hostent *server = gethostbyname("127.0.0.1");
+    char* address;
+    if(argc>1)
+    {
+        strcpy(address,argv[1]);
+        cout<<address<<endl;
+    }
+    else
+        address="127.0.0.1";
+    struct hostent *server = gethostbyname(address);
     struct sockaddr_in socket_address;
     socket_address.sin_family=AF_INET;
     socket_address.sin_port=htons(port);
