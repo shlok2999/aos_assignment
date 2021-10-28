@@ -6,7 +6,7 @@
 #include<string.h>
 
 using namespace std;
-int port=8083;
+int port=2020;
 
 
 int main(int argc,char const *argv[])
@@ -22,7 +22,7 @@ int main(int argc,char const *argv[])
         cout<<"Socket established\n";
     
     //Giving address and port to socket to which it has to bind to
-    struct sockaddr_in socket_address;
+    struct sockaddr_in socket_address,client_address;
     socket_address.sin_family=AF_INET;
     socket_address.sin_port=htons(port);
     socket_address.sin_addr.s_addr=INADDR_ANY;
@@ -40,7 +40,7 @@ int main(int argc,char const *argv[])
         cout<<"Not able to set socket option\n";
         exit(1);
     }
-    int bind_server=bind(server,(sockaddr*)&socket_address,sizeof(socket_address)); //Binded socket to port and address
+    int bind_server=bind(server,(struct sockaddr*)&socket_address, sizeof(socket_address)); //Binded socket to port and address
     if(bind_server<0)
     {
         cout<<"Binding failed\n";
@@ -58,7 +58,23 @@ int main(int argc,char const *argv[])
     }
     else
         cout<<"Server has started to listen\n";
-
-
+    try{
+    memset((char*)&(client_address),'\0',sizeof(client_address));
+    socklen_t client_length = sizeof(client_address);
+    int newconnect=accept(server,(struct sockaddr*) &client_address, &client_length);
+    cout<<newconnect<<endl;
+    cout<<errno<<endl;
+    char buffer[1024]={0};
+    
+    int valread = read( newconnect , buffer, 1024);
+    cout<<buffer;
+    }
+    catch (const std::exception &exc)
+    {
+    // catch anything thrown within try block that derives from std::exception
+        std::cerr << exc.what();
+    }
+    //cout<<valread;
+    
 }
 
