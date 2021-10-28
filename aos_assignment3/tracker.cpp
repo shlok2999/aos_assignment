@@ -58,22 +58,15 @@ int main(int argc,char const *argv[])
     }
     else
         cout<<"Server has started to listen\n";
-    try{
+    
     memset((char*)&(client_address),'\0',sizeof(client_address));
     socklen_t client_length = sizeof(client_address);
     int newconnect=accept(server,(struct sockaddr*) &client_address, &client_length);
-    cout<<newconnect<<endl;
-    cout<<errno<<endl;
     char buffer[1024]={0};
     
     int valread = read( newconnect , buffer, 1024);
     cout<<buffer;
-    }
-    catch (const std::exception &exc)
-    {
-    // catch anything thrown within try block that derives from std::exception
-        std::cerr << exc.what();
-    }
+    
     //cout<<valread;
     
 }
