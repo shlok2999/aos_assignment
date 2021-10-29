@@ -1,13 +1,17 @@
+//Use this command to compile: g++ tracker.cpp -lpthread -o tracker
+
 #include<iostream>
 #include<stdio.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<unistd.h>
 #include<string.h>
+#include<pthread.h>
 
 using namespace std;
 int port=2020;
 
+void * communication(void *connection);
 
 int main(int argc,char const *argv[])
 {
@@ -61,13 +65,29 @@ int main(int argc,char const *argv[])
     
     memset((char*)&(client_address),'\0',sizeof(client_address));
     socklen_t client_length = sizeof(client_address);
-    int newconnect=accept(server,(struct sockaddr*) &client_address, &client_length);
-    char buffer[1024]={0};
-    
-    int valread = read( newconnect , buffer, 1024);
-    cout<<buffer;
+    while(1)
+    {
+        int newconnect=accept(server,(struct sockaddr*) &client_address, &client_length);
+        pthread_t new_thread;
+        int check=pthread_create(&new_thread , NULL , communication ,(void*)&newconnect);
+    }
     
     //cout<<valread;
     
 }
 
+void * communication(void *connection)
+{
+    int com_soc=*(int*)connection;
+    while(1)
+    {
+        char buffer[1024]={0};
+        int valread = read( com_soc , buffer, 1024);
+        cout<<buffer;
+        if(strcmp(buffer,"logout")==0)
+            return 0;
+        cout<<"\nMessage sent\n";
+        
+        send(com_soc , buffer , strlen(buffer) , 0 );
+    }
+}

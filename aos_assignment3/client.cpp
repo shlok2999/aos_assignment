@@ -10,6 +10,7 @@
 using namespace std;
 int port=2020;
 
+void communication(int client);
 
 int main(int argc,char const *argv[])
 {
@@ -28,7 +29,7 @@ int main(int argc,char const *argv[])
     //socket_address.sin_addr.s_addr=server->h_addr;
     bcopy((char *)server->h_addr,(char *)&socket_address.sin_addr.s_addr,server->h_length);
     //memset(&(socket_address.sin_zero),0,8);
-    char hello[1024]="Hello Server";
+    
     cout<<"";
     int newconnect=connect(client, (struct sockaddr*)&socket_address,sizeof(socket_address));
     if(newconnect<0)
@@ -36,7 +37,30 @@ int main(int argc,char const *argv[])
         cout<<"Error in making connection";
         exit(1);
     }
-    
+    communication(client);
     //cout<<hello;
-    send(client , hello , strlen(hello) , 0 );
+    close(newconnect);
+    close(client);
+    
+}
+
+void communication(int client)
+{
+    // char hello[1024]="Hello Server";
+    // 
+    while(1)
+    {
+        char buffer[1024]={0};
+        string s;
+        getline(cin,s);
+        char msg[256];
+        strcpy(msg,s.c_str());
+        msg[s.length()]='\0';
+        send(client , msg , strlen(msg) , 0 );
+        if(s=="logout")
+            return;
+        int recieve=read(client,buffer,sizeof(buffer));
+        //cout<<recieve;
+        cout<<buffer<<endl;
+    }
 }
