@@ -1,5 +1,3 @@
-//Use this command to compile: g++ tracker.cpp -lpthread -o tracker
-
 #include<iostream>
 #include<stdio.h>
 #include<sys/socket.h>
@@ -24,6 +22,8 @@ int main(int argc,char const *argv[])
     }
     else
         cout<<"Socket established\n";
+    
+    //port=atoi(argv[1]);
     
     //Giving address and port to socket to which it has to bind to
     struct sockaddr_in socket_address,client_address;
