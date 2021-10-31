@@ -1,3 +1,4 @@
+#include<bits/stdc++.h>
 #include<iostream>
 #include<stdio.h>
 #include<sys/socket.h>
@@ -5,15 +6,59 @@
 #include<unistd.h>
 #include<string.h>
 #include<pthread.h>
-
 using namespace std;
+///////////////////////////////// User Defined Classes ///////////////////////////////////////////////////
+class group
+{
+    public:
+    string grpid;
+    string owner;
+    unordered_map<string,sockaddr_in> users;
+    unordered_map<string,vector< set<sockaddr_in> >> files;
+    
+};
+
+class peers
+{
+    public:
+    int peer_fd;
+    sockaddr_in peer_address;
+    string username;
+    string password;
+    unordered_map<string,string> sharable_files; //The file name will be mapped to binary string which tell which peices are there
+    unordered_map<string,string> file_group; //This helps to map file name to grpid
+    peers(int soc,sockaddr_in add,string usr, string pass)
+    {
+        peer_fd=soc;
+        peer_address=add;
+        username=usr;
+        password=pass;
+    }
+};
+
+struct arguments
+{
+    int fd;
+    sockaddr_in client_address;   
+};
+///////////////////////////////////// Global variables ////////////////////////////////////////////////////////
+
 int port=2020;
+pthread_t exit_thread;
+unordered_map<string,group> groups;
+unordered_map<string,peers *> clients;
 
+/////////////////////////////////// Function Declaration //////////////////////////////////////////////////////
 void * communication(void *connection);
-
+void * exiting(void *s);
+void create_account(arguments args,string username,string password);
+bool authenticate(string username,string password);
+void clearing();
+///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
 {
     //Creating a socket
+    atexit(clearing);
     int server=socket(AF_INET, SOCK_STREAM , 0);
     if(server<=0)
     {
@@ -65,29 +110,77 @@ int main(int argc,char const *argv[])
     
     memset((char*)&(client_address),'\0',sizeof(client_address));
     socklen_t client_length = sizeof(client_address);
+    
+    pthread_create(&exit_thread , NULL , exiting ,NULL);
+    
     while(1)
     {
         int newconnect=accept(server,(struct sockaddr*) &client_address, &client_length);
         pthread_t new_thread;
-        int check=pthread_create(&new_thread , NULL , communication ,(void*)&newconnect);
+        arguments args;
+        args.fd=newconnect;
+        args.client_address=client_address;
+        int check=pthread_create(&new_thread , NULL , communication ,(void*)&args);
+        
     }
     
     //cout<<valread;
     
 }
-
+//////////////////////////////////// Thread to handle the client //////////////////////////////////////////////
 void * communication(void *connection)
 {
-    int com_soc=*(int*)connection;
+    arguments args=*(arguments*)connection;
+    int com_soc=args.fd;
+    // while(1)
+    // {
+    //     char buffer[1024]={0};
+    //     int valread = read( com_soc , buffer, 1024);
+    // }
     while(1)
     {
         char buffer[1024]={0};
-        int valread = read( com_soc , buffer, 1024);
+        int valread = recv( com_soc , buffer, 1024, 0); ///Replace in place of read
         cout<<buffer;
         if(strcmp(buffer,"logout")==0)
             return 0;
         cout<<"\nMessage sent\n";
         
         send(com_soc , buffer , strlen(buffer) , 0 );
+    }
+}
+/////////////////////////////////////////////// Creating a thread for user id /////////////////////////////////
+
+void create_account(arguments args,string username,string password)
+{
+    if(clients.find(username)==clients.end())
+    {   
+        cout<<"Username already exist";    
+        return;
+    }
+    peers *peer= new peers(args.fd,args.client_address,username,password);
+    clients[username]=peer;
+    return;
+}
+
+/////////////////////////////////////////////// Thread handler to stop the server /////////////////////////////
+
+void * exiting(void *s)
+{
+    pthread_join( exit_thread , NULL);
+    while(1)
+    {
+        string s;
+        cin>>s;
+        if(s=="quit")
+            exit(0);
+    }
+}
+////////////////////////////////////// Exiting Code ///////////////////////////////////////////////////////
+void clearing()
+{
+    for(auto i=clients.begin(); i!=clients.end();i++)
+    {
+        delete i->second;
     }
 }
