@@ -34,24 +34,24 @@ int main(int argc,char const *argv[])
     //Connecting with a tracker
     string server_ip(argv[2]);
     int newconnect=connecting(server_ip);
-    //communication(newconnect);
+    communication(newconnect);
     //cout<<hello;
-    cout<<"Enter 1 for upload 0 for download:";
-    int op;
-    cin>>op;
-    //cout<<"hello";
-    if(op)
-    {
-        cout<<op;
-        socklen_t cl=sizeof(c_addr);
-        int nc=accept(client,(sockaddr*)&c_addr,&cl);
-        cout<<nc<<endl;
-        upload_file(nc);
-    }
-    else
-    {
-        download_file(newconnect);
-    }
+    // cout<<"Enter 1 for upload 0 for download:";
+    // int op;
+    // cin>>op;
+    // //cout<<"hello";
+    // if(op)
+    // {
+    //     cout<<op;
+    //     socklen_t cl=sizeof(c_addr);
+    //     int nc=accept(client,(sockaddr*)&c_addr,&cl);
+    //     cout<<nc<<endl;
+    //     upload_file(nc);
+    // }
+    // else
+    // {
+    //     download_file(newconnect);
+    // }
     close(newconnect);
     close(client);
     close(client1);
@@ -68,7 +68,7 @@ void communication(int client)
         char buffer[1024]={0};
         string s;
         getline(cin,s);
-        cin >> s;
+        //cin >> s;
         char msg[256];
         strcpy(msg,s.c_str());
         msg[s.length()]='\0';
