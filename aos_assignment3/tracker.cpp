@@ -136,15 +136,35 @@ void * communication(void *connection)
     int com_soc=args.fd;
     while(1)
     {
+        char *reply;
+        bool ans=false;
         char buffer[1024]={0};
         int valread = read( com_soc , buffer, 1024);
         string data(buffer);
         vector<string> tokens=tokenizer(data);
-        string username=tokens[1];
-        string password=tokens[2];
-        char *reply=create_account(args,username,password);
+        if(tokens[0]=="create")
+        {
+            string username=tokens[1];
+            string password=tokens[2];
+            reply=create_account(args,username,password);
+        }
+        else if(tokens[0]=="login")
+        {
+            string username=tokens[1];
+            string password=tokens[2];
+            ans=authenticate(username,password);
+            if(ans)
+                reply="Log in sucessful";
+            else
+                reply="Login Failed .... try again";
+        }
+        else
+            reply="First create / log in first";
         send(com_soc , reply , strlen(reply) , 0 );
-        break;
+
+        if(ans)
+            break;
+        
     }
     while(1)
     {
@@ -159,7 +179,7 @@ void * communication(void *connection)
         send(com_soc , buffer , strlen(buffer) , 0 );
     }
 }
-/////////////////////////////////////////////// Creating a thread for user id /////////////////////////////////
+/////////////////////////////////////////////// Creating a user id /////////////////////////////////
 
 char * create_account(arguments args,string username,string password)
 {
@@ -173,6 +193,17 @@ char * create_account(arguments args,string username,string password)
     peers *peer= new peers(args.fd,args.client_address,username,password);
     clients[username]=peer;
     return a;
+}
+
+/////////////////////////////////////// Authenticate User //////////////////////////////////////////////////
+
+bool authenticate(string username,string password)
+{
+    if(clients.find(username)==clients.end())
+        return false;
+    if( clients[username]->password== password)
+        return true;
+    return false;
 }
 
 ////////////////////////////////////////////  A functions to tokenize command /////////////////////////////////
