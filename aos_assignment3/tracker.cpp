@@ -6,6 +6,7 @@
 #include<unistd.h>
 #include<string.h>
 #include<pthread.h>
+
 using namespace std;
 ///////////////////////////////// User Defined Classes ///////////////////////////////////////////////////
 class group
@@ -51,9 +52,10 @@ unordered_map<string,peers *> clients;
 /////////////////////////////////// Function Declaration //////////////////////////////////////////////////////
 void * communication(void *connection);
 void * exiting(void *s);
-void create_account(arguments args,string username,string password);
+char * create_account(arguments args,string username,string password);
 bool authenticate(string username,string password);
 void clearing();
+vector<string> tokenizer(string command);
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
 {
@@ -132,18 +134,26 @@ void * communication(void *connection)
 {
     arguments args=*(arguments*)connection;
     int com_soc=args.fd;
-    // while(1)
-    // {
-    //     char buffer[1024]={0};
-    //     int valread = read( com_soc , buffer, 1024);
-    // }
+    while(1)
+    {
+        char buffer[1024]={0};
+        int valread = read( com_soc , buffer, 1024);
+        string data(buffer);
+        vector<string> tokens=tokenizer(data);
+        string username=tokens[1];
+        string password=tokens[2];
+        char *reply=create_account(args,username,password);
+        send(com_soc , reply , strlen(reply) , 0 );
+        break;
+    }
     while(1)
     {
         char buffer[1024]={0};
         int valread = recv( com_soc , buffer, 1024, 0); ///Replace in place of read
-        cout<<buffer;
         if(strcmp(buffer,"logout")==0)
             return 0;
+        cout<<buffer;
+        
         cout<<"\nMessage sent\n";
         
         send(com_soc , buffer , strlen(buffer) , 0 );
@@ -151,16 +161,34 @@ void * communication(void *connection)
 }
 /////////////////////////////////////////////// Creating a thread for user id /////////////////////////////////
 
-void create_account(arguments args,string username,string password)
+char * create_account(arguments args,string username,string password)
 {
-    if(clients.find(username)==clients.end())
+    if(clients.find(username)!=clients.end())
     {   
-        cout<<"Username already exist";    
-        return;
+        char *a="Username already exist";
+            
+        return a ;
     }
+    char *a="New user created";
     peers *peer= new peers(args.fd,args.client_address,username,password);
     clients[username]=peer;
-    return;
+    return a;
+}
+
+////////////////////////////////////////////  A functions to tokenize command /////////////////////////////////
+vector<string> tokenizer(string command)
+{
+    stringstream s(command);
+    string word;
+    vector<string> ans;
+    while(s >> word)
+    {
+        ans.push_back(word);
+    }
+    // for(string w:ans)
+    //     cout<<w<<" ";
+    cout<<endl;
+    return ans;
 }
 
 /////////////////////////////////////////////// Thread handler to stop the server /////////////////////////////
