@@ -1,4 +1,4 @@
-#include<iostream>
+#include<bits/stdc++.h>
 #include<stdio.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
@@ -16,14 +16,18 @@ using namespace std;
 int port=2020;
 int client,client1;
 struct sockaddr_in client_address,c_addr;
+string my_address,my_port;
 int file_buffer_size=512*1024;
+unordered_map<string,string> files_shared;
+
 /////////////////////// Function Dfinitions /////////////////////////////////////////////////////////
 void communication(int client);
 void initialize(string ip);
 int connecting(string ip);
 void download_file(int con);
 void upload_file(int con);
-
+vector<string> tokenizer(string command);
+string getfilename(string path);
 
 ///////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
@@ -67,17 +71,79 @@ void communication(int client)
     {
         char buffer[1024]={0};
         string s;
+        char msg[256];
         getline(cin >> ws,s);
         //cin >> s;
-        char msg[256];
-        strcpy(msg,s.c_str());
-        msg[s.length()]='\0';
-        send(client , msg , strlen(msg) , 0 );
+        // Checking if user wants to logout
         if(s=="logout")
-            return;
-        int recieve=read(client,buffer,sizeof(buffer));
-        //cout<<recieve;
-        cout<<buffer<<endl;
+            continue;
+        
+        vector<string> tokens=tokenizer(s);
+
+        // if user wants to create user id
+        if(tokens[0]=="create_user")
+        {
+            s=s+ " " + my_address+ " " + my_port;
+
+            strcpy(msg,s.c_str());
+            msg[s.length()]='\0';
+            send(client , msg , strlen(msg) , 0 );
+
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="upload_file")
+        {
+            //This code is not complete
+            //Need to calculate number of fragment and send
+            //Need to make this modular
+            string file_name=getfilename(tokens[1]);
+            files_shared[file_name]=tokens[1];
+            s=tokens[0]+" "+file_name+" "+tokens[2];
+            strcpy(msg,s.c_str());
+            msg[s.length()]='\0';
+            send(client , msg , strlen(msg) , 0 );
+
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="list_groups")
+        {
+            strcpy(msg,s.c_str());
+            msg[s.length()]='\0';
+            send(client , msg , strlen(msg) , 0 );
+            vector<string> log;
+            char groups[125];
+            while(1)
+            {
+                memset(groups,'\0',sizeof(groups));
+                int size=recv(client ,groups , sizeof(groups),0);
+                if(strcmp(groups,"stop")==0)
+                    break;
+                cout<<groups<<endl;
+                
+            }
+        }
+        else if(tokens[0]=="create_group")
+        {
+            strcpy(msg,s.c_str());
+            msg[s.length()]='\0';
+            send(client , msg , strlen(msg) , 0 );
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+        else
+        {
+            strcpy(msg,s.c_str());
+            msg[s.length()]='\0';
+            send(client , msg , strlen(msg) , 0 );
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
     }
 }
 
@@ -97,8 +163,10 @@ void initialize(string ip)
     
     char address[30];
     int index=ip.find(':');
-    int port=stoi(ip.substr(index+1));
+    my_port=ip.substr(index+1);
+    int port=stoi(my_port);
     ip=ip.substr(0,index);
+    my_address=ip;
     strcpy(address,ip.c_str());
     address[ip.length()]='\0';
     //cout<<address;
@@ -159,6 +227,8 @@ int connecting(string ip)
     return client1;
 }
 
+//////////////////////////////////// Downloading file /////////////////////////////////////////////////////////////////////////
+
 void download_file(int con)
 {
     char buffer[1024]={0};
@@ -216,4 +286,32 @@ void upload_file(int con)
         cout<<"Error in Transmitting file";
         return;
     }
+}
+
+////////////////////////////////////////////  A functions to tokenize command /////////////////////////////////
+vector<string> tokenizer(string command)
+{
+    stringstream s(command);
+    string word;
+    vector<string> ans;
+    while(s >> word)
+    {
+        ans.push_back(word);
+    }
+    // for(string w:ans)
+    //     cout<<w<<" ";
+    cout<<endl;
+    return ans;
+}
+
+///////////////////////////////////////// Function to get filename ///////////////////////////////////////////////////////
+string getfilename(string path)
+{
+    int n=path.length();
+    for(int i=n;i>=0;i--)
+    {
+        if(path[i]=='/')
+            return path.substr(i+1);
+    }
+    return path;
 }

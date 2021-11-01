@@ -14,24 +14,33 @@ class group
     public:
     string grpid;
     string owner;
-    unordered_map<string,sockaddr_in> users;
+    unordered_map<string,string> users;
     unordered_map<string,vector< set<sockaddr_in> >> files;
-    
+    unordered_map<string,string> pending_list; 
+
+    group(string usr,string group_id,string owner_det)
+    {
+        owner=usr;
+        grpid=group_id;
+        users[owner]=owner_det;
+    }
 };
 
 class peers
 {
     public:
     int peer_fd;
-    sockaddr_in peer_address;
+    string peer_ip;
+    string peer_port;
     string username;
     string password;
     unordered_map<string,string> sharable_files; //The file name will be mapped to binary string which tell which peices are there
     unordered_map<string,string> file_group; //This helps to map file name to grpid
-    peers(int soc,sockaddr_in add,string usr, string pass)
+    peers(int soc,string ip,string port,string usr, string pass)
     {
         peer_fd=soc;
-        peer_address=add;
+        peer_ip=ip;
+        peer_port=port;
         username=usr;
         password=pass;
     }
@@ -46,16 +55,19 @@ struct arguments
 
 int port=2020;
 pthread_t exit_thread;
-unordered_map<string,group> groups;
+unordered_map<string,group *> groups;
 unordered_map<string,peers *> clients;
 
 /////////////////////////////////// Function Declaration //////////////////////////////////////////////////////
 void * communication(void *connection);
 void * exiting(void *s);
-char * create_account(arguments args,string username,string password);
+char * create_account(int fd,string ip,string port,string username,string password);
 bool authenticate(string username,string password);
 void clearing();
 vector<string> tokenizer(string command);
+char * create_group(string username,string group_id);
+char * join_group(string username,string grpid);
+
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
 {
@@ -134,23 +146,27 @@ void * communication(void *connection)
 {
     arguments args=*(arguments*)connection;
     int com_soc=args.fd;
+    string username;
+    bool ans;
+    char *reply;
     while(1)
     {
-        char *reply;
-        bool ans=false;
+        //char *reply;
+        ans=false;
+        cout<<"In checking phase\n";
         char buffer[1024]={0};
         int valread = read( com_soc , buffer, 1024);
         string data(buffer);
         vector<string> tokens=tokenizer(data);
-        if(tokens[0]=="create")
+        if(tokens[0]=="create_user")
         {
-            string username=tokens[1];
+            username=tokens[1];
             string password=tokens[2];
-            reply=create_account(args,username,password);
+            reply=create_account(com_soc,tokens[3],tokens[4],username,password);
         }
         else if(tokens[0]=="login")
         {
-            string username=tokens[1];
+            username=tokens[1];
             string password=tokens[2];
             ans=authenticate(username,password);
             if(ans)
@@ -168,20 +184,91 @@ void * communication(void *connection)
     }
     while(1)
     {
+        cout<<"In command phase\n";
+        //This is for checking if the user is login or not?
+        while(!ans)
+        {
+            char buff[1024]={0};
+            int valread = read( com_soc , buff, 1024);
+            string data(buff);
+            vector<string> tokens=tokenizer(data);
+            username=tokens[1];
+            string password=tokens[2];
+            //char *reply;
+            ans=authenticate(username,password);
+            if(ans)
+                reply="Log in sucessful";
+            else
+                reply="Login Failed .... try again";
+            send(com_soc , reply , strlen(reply) , 0 );
+            memset(buff,'\0',1024);
+        }
+
+        //From this point onwards we will recieve commands
+        
         char buffer[1024]={0};
         int valread = recv( com_soc , buffer, 1024, 0); ///Replace in place of read
         if(strcmp(buffer,"logout")==0)
-            return 0;
-        cout<<buffer;
-        
+        {
+            ans=false;
+            continue;
+        }
+        //cout<<buffer;
+        string data(buffer);
+        vector<string> tokens=tokenizer(data);
+        if(tokens[0]=="create_group")
+        {
+            //code here
+            reply=create_group(username,tokens[1]);
+        }
+        else if(tokens[0]=="join_group")
+        {
+            //code here
+            reply=join_group(username,tokens[1]);
+        }
+        else if(tokens[0]=="leave_group")
+        {
+            //code here
+
+        }
+        else if(tokens[0]=="list_groups")
+        {
+            //code here
+            char temp[20];
+            for(auto i=groups.begin();i!=groups.end() ; i++)
+            {
+                   
+                memset(temp,'\0',sizeof(temp));
+                strcpy(temp,i->first.c_str());
+                temp[i->first.length()]='\0';
+                send(com_soc , temp , strlen(temp) , 0 );
+                usleep(1);
+            }
+            reply="stop\0";
+        }
+        else if(tokens[0]=="list_files")
+        {
+            //code here
+        }
+        else if(tokens[0]=="upload_file")
+        {
+            //code here
+        }
+        else if(tokens[0]=="download_file")
+        {
+            //code here
+        }
+        else
+        {
+            reply=buffer;
+        }
         cout<<"\nMessage sent\n";
-        
-        send(com_soc , buffer , strlen(buffer) , 0 );
+        send(com_soc , reply , strlen(reply) , 0 );
     }
 }
 /////////////////////////////////////////////// Creating a user id /////////////////////////////////
 
-char * create_account(arguments args,string username,string password)
+char * create_account(int fd, string ip, string port,string username,string password)
 {
     if(clients.find(username)!=clients.end())
     {   
@@ -190,7 +277,7 @@ char * create_account(arguments args,string username,string password)
         return a ;
     }
     char *a="New user created";
-    peers *peer= new peers(args.fd,args.client_address,username,password);
+    peers *peer= new peers(fd,ip,port,username,password);
     clients[username]=peer;
     return a;
 }
@@ -222,6 +309,29 @@ vector<string> tokenizer(string command)
     return ans;
 }
 
+//////////////////////////////////////////////// Create Group ///////////////////////////////////////////////////////////////////
+
+char * create_group(string username,string group_id)
+{
+    if(groups.find(group_id)!=groups.end())
+        return "This group already exist";
+    string usr_det=clients[username]->peer_ip+" "+clients[username]->peer_port;
+    group *new_group= new group(username,group_id,usr_det);
+    groups[group_id]=new_group;
+    return "Group Created";
+}
+
+/////////////////////////////////////////////// Join a Group ////////////////////////////////////////////////////////////////////
+
+char * join_group(string username,string group_id)
+{
+    if(groups.find(group_id)==groups.end())
+        return "No such group exist";
+    string usr_det=clients[username]->peer_ip+" "+clients[username]->peer_port;
+    groups[group_id]->pending_list[username]=usr_det;
+    return "Join Request sent"; 
+}
+
 /////////////////////////////////////////////// Thread handler to stop the server /////////////////////////////
 
 void * exiting(void *s)
@@ -242,4 +352,8 @@ void clearing()
     {
         delete i->second;
     }
+
+    for(auto i=groups.begin() ; i!=groups.end() ; i++)
+        delete i->second;
+
 }
