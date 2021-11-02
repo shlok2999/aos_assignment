@@ -336,7 +336,7 @@ char * join_group(string username,string group_id)
 
 void * exiting(void *s)
 {
-    pthread_join( exit_thread , NULL);
+    //pthread_join( exit_thread , NULL);
     while(1)
     {
         string s;
