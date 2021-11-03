@@ -15,14 +15,60 @@ class group
     string grpid;
     string owner;
     unordered_map<string,string> users;
-    unordered_map<string,vector< set<sockaddr_in> >> files;
-    unordered_map<string,string> pending_list; 
+    //unordered_map<string,vector< set<sockaddr_in> >> files;
+    unordered_map<string,string> pending_list;
+    class files_shared
+    {
+        public:
+        string name;
+        unordered_map<string,string> chunks; //This unordered maps user name to file chunks in form of username to binary string
+        int no_of_chunks;
+
+        void delete_entry(string usrid)
+        {
+            chunks.erase(usrid);
+        }
+        bool isEmpty()
+        {
+            if(chunks.size())
+                return false;
+            return true;
+        } 
+
+    }; 
+
+    unordered_map<string,files_shared *> files;
 
     group(string usr,string group_id,string owner_det)
     {
         owner=usr;
         grpid=group_id;
         users[owner]=owner_det;
+    }
+
+    void remove_user(string usrid)
+    {
+        vector<string> temp;
+        users.erase(usrid);
+        for(auto i=files.begin(); i!=files.end() ; i++)
+        {
+            i->second->delete_entry(usrid);
+            if(i->second->isEmpty())
+                temp.push_back(i->first);
+        }
+
+        for(string s:temp)
+        {
+            delete files[s];
+            files.erase(s);
+        }
+    }
+    ~group()
+    {
+        for(auto i=files.begin(); i!=files.end() ; i++)
+        {
+            delete i->second;
+        }
     }
 };
 
@@ -36,6 +82,7 @@ class peers
     string password;
     unordered_map<string,string> sharable_files; //The file name will be mapped to binary string which tell which peices are there
     unordered_map<string,string> file_group; //This helps to map file name to grpid
+    unordered_set<string> usr_group; //All the groups in which this peer is
     peers(int soc,string ip,string port,string usr, string pass)
     {
         peer_fd=soc;
@@ -43,6 +90,10 @@ class peers
         peer_port=port;
         username=usr;
         password=pass;
+    }
+    void remove_group(string group_id)
+    {
+        usr_group.erase(group_id);
     }
 };
 
@@ -67,6 +118,9 @@ void clearing();
 vector<string> tokenizer(string command);
 char * create_group(string username,string group_id);
 char * join_group(string username,string grpid);
+char * accept_request(string owner,string group_id,string username);
+char * requests(int com_soc,string owner,string group_id);
+char * leave_group(string username,string group_id);
 
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
@@ -188,18 +242,24 @@ void * communication(void *connection)
         //This is for checking if the user is login or not?
         while(!ans)
         {
+            cout<<"In checking phase\n";
             char buff[1024]={0};
             int valread = read( com_soc , buff, 1024);
             string data(buff);
             vector<string> tokens=tokenizer(data);
-            username=tokens[1];
-            string password=tokens[2];
-            //char *reply;
-            ans=authenticate(username,password);
-            if(ans)
-                reply="Log in sucessful";
+            if(tokens[0]!="login")
+                reply="Login first\n";
             else
-                reply="Login Failed .... try again";
+            {
+                username=tokens[1];
+                string password=tokens[2];
+            //char *reply;
+                ans=authenticate(username,password);
+                if(ans)
+                    reply="Log in sucessful";
+                else
+                    reply="Login Failed .... try again";
+            }
             send(com_soc , reply , strlen(reply) , 0 );
             memset(buff,'\0',1024);
         }
@@ -229,6 +289,7 @@ void * communication(void *connection)
         else if(tokens[0]=="leave_group")
         {
             //code here
+            reply=leave_group(username,tokens[1]);
 
         }
         else if(tokens[0]=="list_groups")
@@ -258,6 +319,14 @@ void * communication(void *connection)
         {
             //code here
         }
+        else if(tokens[0]=="accept_request")
+        {
+            reply=accept_request(username,tokens[1],tokens[2]);
+        }
+        else if(tokens[0]=="requests")
+        {
+            reply=requests(com_soc,username,tokens[1]);
+        }
         else
         {
             reply=buffer;
@@ -282,6 +351,19 @@ char * create_account(int fd, string ip, string port,string username,string pass
     return a;
 }
 
+////////////////////////////////////////////////////// Leaving Group ///////////////////////////////////////////////////////////
+
+char * leave_group(string username,string group_id)
+{
+    if(groups.find(group_id)==groups.end())
+        return "Group Doesn't Exist";
+    if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
+        return "You are not part of the group so no need to leave";
+    groups[group_id]->remove_user(username);
+    clients[username]->remove_group(group_id);
+        return "You are no longer part of this group";
+}
+
 /////////////////////////////////////// Authenticate User //////////////////////////////////////////////////
 
 bool authenticate(string username,string password)
@@ -291,6 +373,47 @@ bool authenticate(string username,string password)
     if( clients[username]->password== password)
         return true;
     return false;
+}
+//////////////////////////////////////////// Accepting a request //////////////////////////////////////////////
+
+char * accept_request(string owner,string group_id,string username)
+{
+    if(groups.find(group_id)==groups.end())
+        return "Group Doesn't Exist";
+    if(groups[group_id]->owner!=owner)
+        return "You are authorized to use this command";
+    if(groups[group_id]->pending_list.find(username)==groups[group_id]->pending_list.end())
+        return "Wrong userid accepted";
+    groups[group_id]->users[username]=groups[group_id]->pending_list[username];
+    groups[group_id]->pending_list.erase(username);
+    clients[username]->usr_group.insert(group_id);
+    username="Accepted "+username;
+    char msg[256];
+    strcpy(msg,username.c_str());
+    msg[username.length()]='\0';
+    return msg;
+}
+
+///////////////////////////////////////////// Getting the pending list ///////////////////////////////////////
+char * requests(int com_soc,string owner,string group_id)
+{
+    if(groups.find(group_id)==groups.end())
+        return "Group Doesn't Exist";
+    if(groups[group_id]->owner!=owner)
+        return "You are authorized to use this command";  
+    
+    char temp[20]="Accepted";
+    send(com_soc , temp , strlen(temp) , 0 );
+    usleep(1);
+    for(auto i=groups[group_id]->pending_list.begin();i!=groups[group_id]->pending_list.end() ; i++)
+    {
+        memset(temp,'\0',sizeof(temp));
+        strcpy(temp,i->first.c_str());
+        temp[i->first.length()]='\0';
+        send(com_soc , temp , strlen(temp) , 0 );
+        usleep(1);
+    }
+    return "stop\0";
 }
 
 ////////////////////////////////////////////  A functions to tokenize command /////////////////////////////////
@@ -305,7 +428,7 @@ vector<string> tokenizer(string command)
     }
     // for(string w:ans)
     //     cout<<w<<" ";
-    cout<<endl;
+    //cout<<endl;
     return ans;
 }
 
@@ -318,6 +441,7 @@ char * create_group(string username,string group_id)
     string usr_det=clients[username]->peer_ip+" "+clients[username]->peer_port;
     group *new_group= new group(username,group_id,usr_det);
     groups[group_id]=new_group;
+    clients[username]->usr_group.insert(group_id);
     return "Group Created";
 }
 

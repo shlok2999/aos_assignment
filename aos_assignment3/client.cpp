@@ -25,6 +25,7 @@ void * clearing (void *arg);
 void * communication(void *arg);
 void * listener(void *arg);
 void * communictaing(void *arg);
+char * sending(int com_soc,string msg);
 void initialize(string ip);
 int connecting(string ip);
 void download_file(int con);
@@ -48,15 +49,15 @@ int main(int argc,char const *argv[])
     //     cout<<"Error in creating thread\n";
     //     exit(0);
     // }
-    // pthread_t new_thread;
-    // int check=pthread_create(&new_thread , NULL , communication ,(void*)&newconnect);
-    // if(check< 0)
-    // {
-    //     cout<<"Error in creating thread\n";
-    //     exit(0);
-    // }
+    pthread_t new_thread;
+    int check=pthread_create(&new_thread , NULL , communication ,(void*)&newconnect);
+    if(check< 0)
+    {
+        cout<<"Error in creating thread\n";
+        exit(0);
+    }
     pthread_t listener_thread;
-    int check=pthread_create(&listener_thread , NULL , listener ,(void*)&client);
+    check=pthread_create(&listener_thread , NULL , listener ,(void*)&client);
     if(check < 0)
     {
         cout<<"Error in creating thread\n";
@@ -82,19 +83,19 @@ int main(int argc,char const *argv[])
     // {
     //     download_file(newconnect);
     // }
-    cout<<"Do you want to communicate with server(1/0)?:";
-    int n;
-    cin>>n;
-    while(n)
-    {
-        char buffer[1024]={0};
-        cin>>buffer;
-        send(newconnect,buffer , strlen(buffer) , 0);
-        char buff[1024];
-        int rd=recv(newconnect,buff ,sizeof(buff),0);
-        cout<<buff;
-        memset(buff,'\0',1024);
-    }
+    // cout<<"Do you want to communicate with server(1/0)?:";
+    // int n;
+    // cin>>n;
+    // while(n)
+    // {
+    //     char buffer[1024]={0};
+    //     cin>>buffer;
+    //     send(newconnect,buffer , strlen(buffer) , 0);
+    //     char buff[1024];
+    //     int rd=recv(newconnect,buff ,sizeof(buff),0);
+    //     cout<<buff;
+    //     memset(buff,'\0',1024);
+    // }
     while(1);
     close(newconnect);
     close(client);
@@ -103,90 +104,119 @@ int main(int argc,char const *argv[])
 
 
 ///////////////////////////// Function to handle chat with tracker ///////////////////////////////////////////
-// void * communication(void * arg)
-// {
-//     // char hello[1024]="Hello Server";
-//     // 
-//     int client=*(int*)arg;
-//     while(1)
-//     {
-//         char buffer[1024]={0};
-//         string s;
-//         char msg[256];
-//         getline(cin >> ws,s);
-//         //cin >> s;
-//         // Checking if user wants to logout
-//         if(s=="logout")
-//             continue;
-        
-//         vector<string> tokens=tokenizer(s);
+void * communication(void * arg)
+{
+    // char hello[1024]="Hello Server";
+    // 
+    int client=*(int*)arg;
+    while(1)
+    {
+        char buffer[1024]={0};
+        string s;
+        //char msg[256];
+        getline(cin >> ws,s);
+        //cin >> s;
+        // Checking if user wants to logout
+        if(s=="logout")
+        {
+            sending(client,s);
+            continue;
+        }
+        vector<string> tokens=tokenizer(s);
 
-//         // if user wants to create user id
-//         if(tokens[0]=="create_user")
-//         {
-//             s=s+ " " + my_address+ " " + my_port;
+        // if user wants to create user id
+        if(tokens[0]=="create_user")
+        {
+            s=s+ " " + my_address+ " " + my_port;
 
-//             strcpy(msg,s.c_str());
-//             msg[s.length()]='\0';
-//             send(client , msg , strlen(msg) , 0 );
+            sending(client,s);
 
-//             int recieve=read(client,buffer,sizeof(buffer));
-//             //cout<<recieve;
-//             cout<<buffer<<endl;
-//         }
-//         else if(tokens[0]=="upload_file")
-//         {
-//             //This code is not complete
-//             //Need to calculate number of fragment and send
-//             //Need to make this modular
-//             string file_name=getfilename(tokens[1]);
-//             files_shared[file_name]=tokens[1];
-//             s=tokens[0]+" "+file_name+" "+tokens[2];
-//             strcpy(msg,s.c_str());
-//             msg[s.length()]='\0';
-//             send(client , msg , strlen(msg) , 0 );
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="upload_file")
+        {
+            //This code is not complete
+            //Need to calculate number of fragment and send
+            //Need to make this modular
+            // string file_name=getfilename(tokens[1]);
+            // files_shared[file_name]=tokens[1];
+            // s=tokens[0]+" "+file_name+" "+tokens[2];
+            // strcpy(msg,s.c_str());
+            // msg[s.length()]='\0';
+            // send(client , msg , strlen(msg) , 0 );
 
-//             int recieve=read(client,buffer,sizeof(buffer));
-//             //cout<<recieve;
-//             cout<<buffer<<endl;
-//         }
-//         else if(tokens[0]=="list_groups")
-//         {
-//             strcpy(msg,s.c_str());
-//             msg[s.length()]='\0';
-//             send(client , msg , strlen(msg) , 0 );
-//             vector<string> log;
-//             char groups[125];
-//             while(1)
-//             {
-//                 memset(groups,'\0',sizeof(groups));
-//                 int size=recv(client ,groups , sizeof(groups),0);
-//                 if(strcmp(groups,"stop")==0)
-//                     break;
-//                 cout<<groups<<endl;
+            // int recieve=read(client,buffer,sizeof(buffer));
+            // //cout<<recieve;
+            // cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="list_groups")
+        {
+            sending(client,s);
+            vector<string> log;
+            char groups[125];
+            while(1)
+            {
+                memset(groups,'\0',sizeof(groups));
+                int size=recv(client ,groups , sizeof(groups),0);
+                if(strcmp(groups,"stop")==0)
+                    break;
+                if(size==0)
+                    continue;
+                cout<<groups<<endl;
                 
-//             }
-//         }
-//         else if(tokens[0]=="create_group")
-//         {
-//             strcpy(msg,s.c_str());
-//             msg[s.length()]='\0';
-//             send(client , msg , strlen(msg) , 0 );
-//             int recieve=read(client,buffer,sizeof(buffer));
-//             //cout<<recieve;
-//             cout<<buffer<<endl;
-//         }
-//         else
-//         {
-//             strcpy(msg,s.c_str());
-//             msg[s.length()]='\0';
-//             send(client , msg , strlen(msg) , 0 );
-//             int recieve=read(client,buffer,sizeof(buffer));
-//             //cout<<recieve;
-//             cout<<buffer<<endl;
-//         }
-//     }
-// }
+            }
+        }
+        else if(tokens[0]=="create_group")
+        {
+            sending(client,s);
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="requests")
+        {
+            sending(client,s);
+            memset(buffer,'\0',sizeof(buffer));
+            int recieve=read(client,buffer,sizeof(buffer));
+            if(strcmp(buffer,"Accepted")==0)
+            {
+                char users[125];
+                while(1)
+                {
+                    memset(users,'\0',sizeof(users));
+                    int size=recv(client ,users , sizeof(users),0);
+                    if(strcmp(users,"stop")==0)
+                        break;
+                    if(size==0)
+                        continue;
+                    cout<<users<<endl;
+                
+                }
+            }
+            else
+                cout<<buffer<<endl;
+        }
+        else
+        {
+            sending(client,s);
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+    }
+}
+
+/////////////////////////////////////////////// Sending a msg function //////////////////////////////////////////////////////
+char * sending(int com_soc,string s)
+{
+    char msg[256]={0};
+    strcpy(msg,s.c_str());
+    msg[s.length()]='\0';
+    send(com_soc , msg , strlen(msg) , 0 );
+    return msg;
+}
 
 
 ////////////////////////////////////////////////Initializing server socket///////////////////////////////////////////////////
@@ -341,7 +371,7 @@ vector<string> tokenizer(string command)
     }
     // for(string w:ans)
     //     cout<<w<<" ";
-    cout<<endl;
+    //cout<<endl;
     return ans;
 }
 
