@@ -391,7 +391,7 @@ char * accept_request(string owner,string group_id,string username)
     char msg[256];
     strcpy(msg,username.c_str());
     msg[username.length()]='\0';
-    return msg;
+    return "Accepted user";
 }
 
 ///////////////////////////////////////////// Getting the pending list ///////////////////////////////////////
@@ -403,6 +403,7 @@ char * requests(int com_soc,string owner,string group_id)
         return "You are authorized to use this command";  
     
     char temp[20]="Accepted";
+    
     send(com_soc , temp , strlen(temp) , 0 );
     usleep(1);
     for(auto i=groups[group_id]->pending_list.begin();i!=groups[group_id]->pending_list.end() ; i++)
@@ -413,7 +414,7 @@ char * requests(int com_soc,string owner,string group_id)
         send(com_soc , temp , strlen(temp) , 0 );
         usleep(1);
     }
-    return "stop\0";
+    return "stop";
 }
 
 ////////////////////////////////////////////  A functions to tokenize command /////////////////////////////////

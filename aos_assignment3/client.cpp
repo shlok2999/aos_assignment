@@ -182,6 +182,7 @@ void * communication(void * arg)
             int recieve=read(client,buffer,sizeof(buffer));
             if(strcmp(buffer,"Accepted")==0)
             {
+                //cout<<buffer<<endl;
                 char users[125];
                 while(1)
                 {
@@ -189,14 +190,20 @@ void * communication(void * arg)
                     int size=recv(client ,users , sizeof(users),0);
                     if(strcmp(users,"stop")==0)
                         break;
-                    if(size==0)
-                        continue;
                     cout<<users<<endl;
                 
                 }
             }
             else
                 cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="accept_request")
+        {
+            sending(client,s);
+            memset(buffer,'\0',sizeof(buffer));
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
         }
         else
         {
