@@ -126,10 +126,17 @@ void * communication(void * arg)
             sending(client,s);
             continue;
         }
+        if(s=="quit")
+        {
+            sending(client,s);
+            return NULL;
+        }
+        if(s=="")
+            continue;
         vector<string> tokens=tokenizer(s);
-
+        int tsize=tokens.size();
         // if user wants to create user id
-        if(tokens[0]=="create_user")
+        if(tokens[0]=="create_user" && tsize==3)
         {
             s=s+ " " + my_address+ " " + my_port;
 
@@ -139,7 +146,31 @@ void * communication(void * arg)
             //cout<<recieve;
             cout<<buffer<<endl;
         }
-        else if(tokens[0]=="upload_file")
+        else if(tokens[0]=="login" && tsize==3)
+        {
+            sending(client,s);
+        
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="join_group" && tsize==2)
+        {
+            sending(client,s);
+        
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="leave_group" && tsize==2)
+        {
+            sending(client,s);
+        
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="upload_file" && tsize==3)
         {
             //This code is not complete
             //Need to calculate number of fragment and send
@@ -160,7 +191,7 @@ void * communication(void * arg)
             // //cout<<recieve;
              cout<<buffer<<endl;
         }
-        else if(tokens[0]=="download_file")
+        else if(tokens[0]=="download_file" && tsize==4)
         {
             files_downloaded[tokens[2]]=tokens[3]+'/'+tokens[2];
             files_status[tokens[2]]='C';
@@ -208,14 +239,14 @@ void * communication(void * arg)
                 
             }
         }
-        else if(tokens[0]=="create_group")
+        else if(tokens[0]=="create_group" && tsize==2)
         {
             sending(client,s);
             int recieve=read(client,buffer,sizeof(buffer));
             //cout<<recieve;
             cout<<buffer<<endl;
         }
-        else if(tokens[0]=="requests" && tokens[1]=="list_requests")
+        else if(tsize==3 && tokens[0]=="requests" && tokens[1]=="list_requests")
         {
             sending(client,s);
             memset(buffer,'\0',sizeof(buffer));
@@ -237,7 +268,7 @@ void * communication(void * arg)
             else
                 cout<<buffer<<endl;
         }
-        else if(tokens[0]=="list_files")
+        else if(tokens[0]=="list_files" && tsize==2)
         {
             sending(client,s);
             memset(buffer,'\0',sizeof(buffer));
@@ -259,7 +290,7 @@ void * communication(void * arg)
             else
                 cout<<buffer<<endl;   
         }
-        else if(tokens[0]=="accept_request")
+        else if(tokens[0]=="accept_request" && tsize==3)
         {
             sending(client,s);
             memset(buffer,'\0',sizeof(buffer));
@@ -269,10 +300,8 @@ void * communication(void * arg)
         }
         else
         {
-            sending(client,s);
-            int recieve=read(client,buffer,sizeof(buffer));
-            //cout<<recieve;
-            cout<<buffer<<endl;
+            cout<<"Wrong command\n";
+            continue;
         }
     }
 }

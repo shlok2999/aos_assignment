@@ -254,6 +254,11 @@ void * communication(void *connection)
         char buffer[1024]={0};
         int valread = read( com_soc , buffer, 1024);
         string data(buffer);
+        if(strcmp(buffer,"quit")==0)
+        {
+            ans=false;
+            return NULL;
+        }
         vector<string> tokens=tokenizer(data);
         if(tokens[0]=="create_user")
         {
@@ -288,6 +293,11 @@ void * communication(void *connection)
             cout<<"In checking phase\n";
             char buff[1024]={0};
             int valread = read( com_soc , buff, 1024);
+            if(strcmp(buff,"quit")==0)
+            {
+                ans=false;
+                return NULL;
+            }
             string data(buff);
             vector<string> tokens=tokenizer(data);
             if(tokens[0]!="login")
@@ -315,6 +325,11 @@ void * communication(void *connection)
         {
             ans=false;
             continue;
+        }
+        if(strcmp(buffer,"quit")==0)
+        {
+            ans=false;
+            return NULL;
         }
         //cout<<buffer;
         string data(buffer);
