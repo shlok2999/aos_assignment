@@ -169,6 +169,7 @@ void * communication(void * arg)
 
             memset(buffer,'\0',sizeof(buffer));
             int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<buffer<<endl;
             if(strcmp(buffer,"Accepted")==0)
             {
                 //cout<<buffer<<endl;

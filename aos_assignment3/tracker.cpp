@@ -88,12 +88,15 @@ class group
         vector<string> ans;
         if(files.find(filename)==files.end())
         {
+            cout<<"Empty"<<endl;
             return ans;
         }
-        for(auto i=files[filename]->chunks.begin();i!=files[filename]->chunks.begin();i++)
+        //cout<<files[filename]->chunks.size()<<endl;
+        for(auto i=files[filename]->chunks.begin();i!=files[filename]->chunks.end();i++)
         {
             string s=users[i->first];
             s=s+" "+i->second;
+            //cout<<s<<endl;
             ans.push_back(s);
         }
 
@@ -160,6 +163,7 @@ char * requests(int com_soc,string owner,string group_id);
 char * leave_group(string username,string group_id);
 char * list_files(int com_soc,string username,string group_id);
 char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no,string bitmap);
+char * download_file(int com_soc,string username,string group_id,string filename);
 
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
@@ -315,6 +319,7 @@ void * communication(void *connection)
         //cout<<buffer;
         string data(buffer);
         vector<string> tokens=tokenizer(data);
+        //cout<<tokens[0]<<endl<<flush;
         if(tokens[0]=="create_group")
         {
             //code here
@@ -354,11 +359,13 @@ void * communication(void *connection)
         else if(tokens[0]=="upload_file")
         {
             //code here
+            //cout<<data<<endl;
             reply=upload_file(com_soc,username,tokens[1],tokens[2],tokens[3],tokens[4]);
         }
         else if(tokens[0]=="download_file")
         {
             //code here
+            reply=download_file(com_soc,username,tokens[1],tokens[2]);
         }
         else if(tokens[0]=="accept_request")
         {
@@ -555,19 +562,21 @@ char * upload_file(int com_soc,string username,string filename,string group_id,s
     if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
         return "You are not part of this group";
     groups[group_id]->sharefile(username,filename,chunk_no,bitmap);
+    //cout<<groups[group_id]->files[filename]->chunks[username]<<endl;
     return "Uploaded Successfully";
 }
 
 char * download_file(int com_soc,string username,string group_id,string filename)
 {
+    //cout<<"In download_file phase"<<endl;
     if(groups.find(group_id)==groups.end())
         return "Group Doesn't Exist";
     if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
         return "You are not part of this group";
-    
+    //cout<<"Before call"<<endl;
     vector<string> det=groups[group_id]->getfiledetails(filename);
     char temp[1000]="Accepted";
-    
+    //cout<<"Aftercall"<<endl;    
     send(com_soc , temp , strlen(temp) , 0 );
     usleep(1);
     for(string s:det)
@@ -578,5 +587,5 @@ char * download_file(int com_soc,string username,string group_id,string filename
         send(com_soc , temp , strlen(temp) , 0 );
         usleep(1);
     }
-    return "stop";
+    return "stop\0";
 }
