@@ -32,7 +32,8 @@ class group
         }
         void delete_entry(string usrid)
         {
-            chunks.erase(usrid);
+            if(chunks.find(usrid)!=chunks.end())
+                chunks.erase(usrid);
         }
         bool isEmpty()
         {
@@ -418,13 +419,37 @@ char * create_account(int fd, string ip, string port,string username,string pass
 
 char * leave_group(string username,string group_id)
 {
+    //cout<<"In leave_group phase"<<endl;
     if(groups.find(group_id)==groups.end())
         return "Group Doesn't Exist";
     if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
         return "You are not part of the group so no need to leave";
-    groups[group_id]->remove_user(username);
-    clients[username]->remove_group(group_id);
+    if(groups[group_id]->owner==username)
+    {
+        //cout<<"Going to go inside loop"<<endl;
+        vector<string> users;
+        for(auto i=groups[group_id]->users.begin(); i!=groups[group_id]->users.end() ; i++)
+        {
+            users.push_back(i->first);
+        }
+        for(string s:users)
+        {
+            groups[group_id]->remove_user(s);
+            //cout<<"Removed user from group"<<endl;
+            clients[s]->remove_group(group_id);
+            //cout<<"remove group from user"<<endl;
+        }
+        //cout<<"Outside the loop"<<endl;
+        delete groups[group_id];
+        groups.erase(group_id);
+        return "As you were owner so group was deleted";
+    }
+    else
+    {
+        groups[group_id]->remove_user(username);
+        clients[username]->remove_group(group_id);
         return "You are no longer part of this group";
+    }
 }
 
 /////////////////////////////////////// Authenticate User //////////////////////////////////////////////////
@@ -524,7 +549,7 @@ char * create_group(string username,string group_id)
 {
     if(groups.find(group_id)!=groups.end())
         return "This group already exist";
-    string usr_det=clients[username]->peer_ip+" "+clients[username]->peer_port;
+    string usr_det=clients[username]->peer_ip+":"+clients[username]->peer_port;
     group *new_group= new group(username,group_id,usr_det);
     groups[group_id]=new_group;
     clients[username]->usr_group.insert(group_id);
@@ -537,7 +562,11 @@ char * join_group(string username,string group_id)
 {
     if(groups.find(group_id)==groups.end())
         return "No such group exist";
-    string usr_det=clients[username]->peer_ip+" "+clients[username]->peer_port;
+    if(groups[group_id]->pending_list.find(username)!=groups[group_id]->pending_list.end())
+        return "Already applied.. still in waiting list";
+    if(groups[group_id]->users.find(username)!=groups[group_id]->users.end())
+        return "Already part of group";
+    string usr_det=clients[username]->peer_ip+":"+clients[username]->peer_port;
     groups[group_id]->pending_list[username]=usr_det;
     return "Join Request sent"; 
 }
