@@ -19,6 +19,8 @@ struct sockaddr_in client_address,c_addr;
 string my_address,my_port;
 int file_buffer_size=512*1024;
 unordered_map<string,string> files_shared;
+unordered_map<string,string> files_downloaded;
+unordered_map<string,char> files_status;
 
 /////////////////////// Function Dfinitions /////////////////////////////////////////////////////////
 void * clearing (void *arg);
@@ -32,6 +34,8 @@ void download_file(int con);
 void upload_file(int con);
 vector<string> tokenizer(string command);
 string getfilename(string path);
+int getfilesize(string file);
+string getbitmap(int n);
 
 ///////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
@@ -140,16 +144,51 @@ void * communication(void * arg)
             //This code is not complete
             //Need to calculate number of fragment and send
             //Need to make this modular
-            // string file_name=getfilename(tokens[1]);
-            // files_shared[file_name]=tokens[1];
-            // s=tokens[0]+" "+file_name+" "+tokens[2];
+            int n=getfilesize(tokens[1]);
+            if(n==-1)
+                continue;
+            string bitmap=getbitmap(n);
+            string file_name=getfilename(tokens[1]);
+            files_shared[file_name]=tokens[1];
+            s=tokens[0]+" "+file_name+" "+tokens[2]+" "+to_string(n)+" "+bitmap;
+            sending(client,s);
             // strcpy(msg,s.c_str());
             // msg[s.length()]='\0';
             // send(client , msg , strlen(msg) , 0 );
 
-            // int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=read(client,buffer,sizeof(buffer));
             // //cout<<recieve;
-            // cout<<buffer<<endl;
+             cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="download_file")
+        {
+            files_downloaded[tokens[2]]=tokens[3]+'/'+tokens[2];
+            files_status[tokens[2]]='C';
+            sending(client,s);
+            vector<string> list_of_peers;
+
+            memset(buffer,'\0',sizeof(buffer));
+            int recieve=read(client,buffer,sizeof(buffer));
+            if(strcmp(buffer,"Accepted")==0)
+            {
+                //cout<<buffer<<endl;
+                char users[1000];
+                while(1)
+                {
+                    memset(users,'\0',sizeof(users));
+                    int size=recv(client ,users , sizeof(users),0);
+                    if(strcmp(users,"stop")==0)
+                        break;
+                    string p(users);
+                    list_of_peers.push_back(p);
+                    cout<<p<<endl;
+                
+                }
+            }
+            else
+                cout<<buffer<<endl;
+
+
         }
         else if(tokens[0]=="list_groups")
         {
@@ -175,7 +214,7 @@ void * communication(void * arg)
             //cout<<recieve;
             cout<<buffer<<endl;
         }
-        else if(tokens[0]=="requests")
+        else if(tokens[0]=="requests" && tokens[1]=="list_requests")
         {
             sending(client,s);
             memset(buffer,'\0',sizeof(buffer));
@@ -196,6 +235,28 @@ void * communication(void * arg)
             }
             else
                 cout<<buffer<<endl;
+        }
+        else if(tokens[0]=="list_files")
+        {
+            sending(client,s);
+            memset(buffer,'\0',sizeof(buffer));
+            int recieve=read(client,buffer,sizeof(buffer));
+            if(strcmp(buffer,"Accepted")==0)
+            {
+                //cout<<buffer<<endl;
+                char users[125];
+                while(1)
+                {
+                    memset(users,'\0',sizeof(users));
+                    int size=recv(client ,users , sizeof(users),0);
+                    if(strcmp(users,"stop")==0)
+                        break;
+                    cout<<users<<endl;
+                
+                }
+            }
+            else
+                cout<<buffer<<endl;   
         }
         else if(tokens[0]=="accept_request")
         {
@@ -423,6 +484,33 @@ void * communictaing(void *arg)
         send(client_talking , buffer , strlen(buffer) , 0);
         memset(buffer,'\0',sizeof(buffer));
     }
+}
+
+//////////////////////////////////////////////// Calculating file size ////////////////////////////////////
+
+int getfilesize(string path)
+{
+    char file[FILENAME_MAX]={0};
+    strcpy(file,path.c_str());
+    file[path.length()]='\0';
+    struct stat st;
+    if(stat(file,&st)==-1)
+        return -1;
+    int num_of_chunks=st.st_size/file_buffer_size;
+    if(st.st_size%file_buffer_size)
+        num_of_chunks++;
+    return num_of_chunks;
+
+}
+
+//////////////////////////////////////////////// Function to get bitmap //////////////////////////////////
+
+string getbitmap(int n)
+{
+    string s="";
+    for(int i=0;i<n;i++)
+        s=s+'1';
+    return s;
 }
 ////////////////////////////////////////////// Exiting Thread ////////////////////////////////////////////////////////////
 // void * exiting(void *s)

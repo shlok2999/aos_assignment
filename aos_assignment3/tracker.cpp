@@ -24,6 +24,12 @@ class group
         unordered_map<string,string> chunks; //This unordered maps user name to file chunks in form of username to binary string
         int no_of_chunks;
 
+        files_shared(string username,string filename,string noc,string bitmap)
+        {
+            name=filename;
+            no_of_chunks=stoi(noc);
+            chunks[username]=bitmap;
+        }
         void delete_entry(string usrid)
         {
             chunks.erase(usrid);
@@ -63,6 +69,37 @@ class group
             files.erase(s);
         }
     }
+
+    void sharefile(string username,string filename,string chunk_no,string bitmap)
+    {
+        if(files.find(filename)==files.end())
+        {
+            files_shared *file1= new files_shared(username,filename,chunk_no,bitmap);
+            files[filename]=file1;
+        }
+        else
+        {
+            files[filename]->chunks[username]=bitmap;
+        }
+    }
+
+    vector<string> getfiledetails(string filename)
+    {
+        vector<string> ans;
+        if(files.find(filename)==files.end())
+        {
+            return ans;
+        }
+        for(auto i=files[filename]->chunks.begin();i!=files[filename]->chunks.begin();i++)
+        {
+            string s=users[i->first];
+            s=s+" "+i->second;
+            ans.push_back(s);
+        }
+
+        return ans;
+    }
+
     ~group()
     {
         for(auto i=files.begin(); i!=files.end() ; i++)
@@ -121,6 +158,8 @@ char * join_group(string username,string grpid);
 char * accept_request(string owner,string group_id,string username);
 char * requests(int com_soc,string owner,string group_id);
 char * leave_group(string username,string group_id);
+char * list_files(int com_soc,string username,string group_id);
+char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no,string bitmap);
 
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
@@ -310,10 +349,12 @@ void * communication(void *connection)
         else if(tokens[0]=="list_files")
         {
             //code here
+            reply=list_files(com_soc,username,tokens[1]);
         }
         else if(tokens[0]=="upload_file")
         {
             //code here
+            reply=upload_file(com_soc,username,tokens[1],tokens[2],tokens[3],tokens[4]);
         }
         else if(tokens[0]=="download_file")
         {
@@ -323,9 +364,9 @@ void * communication(void *connection)
         {
             reply=accept_request(username,tokens[1],tokens[2]);
         }
-        else if(tokens[0]=="requests")
+        else if(tokens[0]=="requests" && tokens[1]=="list_requests")
         {
-            reply=requests(com_soc,username,tokens[1]);
+            reply=requests(com_soc,username,tokens[2]);
         }
         else
         {
@@ -417,6 +458,28 @@ char * requests(int com_soc,string owner,string group_id)
     return "stop";
 }
 
+////////////////////////////////////////////// Lists All files ///////////////////////////////////////////////
+char * list_files(int com_soc,string username,string group_id)
+{
+    if(groups.find(group_id)==groups.end())
+        return "Group Doesn't Exist";
+    if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
+        return "You are not part of this group";
+    char temp[20]="Accepted";
+    
+    send(com_soc , temp , strlen(temp) , 0 );
+    usleep(1);
+    for(auto i=groups[group_id]->files.begin();i!=groups[group_id]->files.end() ; i++)
+    {
+        memset(temp,'\0',sizeof(temp));
+        strcpy(temp,i->first.c_str());
+        temp[i->first.length()]='\0';
+        send(com_soc , temp , strlen(temp) , 0 );
+        usleep(1);
+    }
+    return "stop";
+}
+
 ////////////////////////////////////////////  A functions to tokenize command /////////////////////////////////
 vector<string> tokenizer(string command)
 {
@@ -481,4 +544,39 @@ void clearing()
     for(auto i=groups.begin() ; i!=groups.end() ; i++)
         delete i->second;
 
+}
+
+///////////////////////////////////// Upload File ////////////////////////////////////////////////////////
+
+char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no,string bitmap)
+{
+    if(groups.find(group_id)==groups.end())
+        return "Group Doesn't Exist";
+    if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
+        return "You are not part of this group";
+    groups[group_id]->sharefile(username,filename,chunk_no,bitmap);
+    return "Uploaded Successfully";
+}
+
+char * download_file(int com_soc,string username,string group_id,string filename)
+{
+    if(groups.find(group_id)==groups.end())
+        return "Group Doesn't Exist";
+    if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
+        return "You are not part of this group";
+    
+    vector<string> det=groups[group_id]->getfiledetails(filename);
+    char temp[1000]="Accepted";
+    
+    send(com_soc , temp , strlen(temp) , 0 );
+    usleep(1);
+    for(string s:det)
+    {
+        memset(temp,'\0',sizeof(temp));
+        strcpy(temp,s.c_str());
+        temp[s.length()]='\0';
+        send(com_soc , temp , strlen(temp) , 0 );
+        usleep(1);
+    }
+    return "stop";
 }
