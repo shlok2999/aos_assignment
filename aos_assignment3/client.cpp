@@ -246,6 +246,13 @@ void * communication(void * arg)
             //cout<<recieve;
             cout<<buffer<<endl;
         }
+        else if(tokens[0]=="stop_share" && tsize==3)
+        {
+            sending(client,s);
+            int recieve=read(client,buffer,sizeof(buffer));
+            //cout<<recieve;
+            cout<<buffer<<endl;
+        }
         else if(tsize==3 && tokens[0]=="requests" && tokens[1]=="list_requests")
         {
             sending(client,s);

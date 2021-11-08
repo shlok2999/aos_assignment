@@ -91,6 +91,16 @@ class group
         }
     }
 
+    void stop_sharing(string username,string filename)
+    {
+        files[filename]->delete_entry(username);
+        if(files[filename]->isEmpty())
+        {
+            delete files[filename];
+            files.erase(filename);
+        }
+    }
+
     void sharefile(string username,string filename,string chunk_no,string bitmap)
     {
         if(files.find(filename)==files.end())
@@ -169,7 +179,15 @@ class peers
             files.erase(s);
         }
     }
-
+    void stop_sharing(string grpid,string filename)
+    {
+        files[filename]->delete_entry(grpid);
+        if(files[filename]->isEmpty())
+        {
+            delete files[filename];
+            files.erase(filename);
+        }
+    }
     void sharefile(string group_id,string filename,string chunk_no,string bitmap)
     {
         if(files.find(filename)==files.end())
@@ -192,7 +210,7 @@ class peers
     }
 };
 
-struct arguments
+struct arguments //No londer required
 {
     int fd;
     sockaddr_in client_address;   
@@ -219,6 +237,7 @@ char * leave_group(string username,string group_id);
 char * list_files(int com_soc,string username,string group_id);
 char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no,string bitmap);
 char * download_file(int com_soc,string username,string group_id,string filename);
+char * stop_share(string username,string group_id,string filename);
 void logout(string username);
 
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
@@ -408,6 +427,10 @@ void * communication(void *connection)
             reply=leave_group(username,tokens[1]);
 
         }
+        else if(tokens[0]=="stop_share")
+        {
+            reply=stop_share(username,tokens[1],tokens[2]);
+        }
         else if(tokens[0]=="list_groups")
         {
             //code here
@@ -592,6 +615,20 @@ char * list_files(int com_soc,string username,string group_id)
     }
     return "stop";
 }
+
+///////////////////////////////////////////// Stop Share /////////////////////////////////////////////////////
+
+char * stop_share(string username,string group_id,string filename)
+{
+     if(groups.find(group_id)==groups.end())
+        return "Group Doesn't Exist";
+    if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
+        return "You are not part of this group";
+    groups[group_id]->stop_sharing(username,filename);
+    clients[username]->stop_sharing(group_id,filename);
+    return "Stop Sharing file successfully";
+}
+
 
 ////////////////////////////////////////////  A functions to tokenize command /////////////////////////////////
 vector<string> tokenizer(string command)
