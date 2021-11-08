@@ -9,6 +9,33 @@
 
 using namespace std;
 ///////////////////////////////// User Defined Classes ///////////////////////////////////////////////////
+
+class files_shared
+{
+    public:
+    string name;
+    unordered_map<string,string> chunks; //This unordered maps user name to file chunks in form of username/grpid to binary string
+    int no_of_chunks;
+    files_shared(string username,string filename,string noc,string bitmap)
+    {
+        name=filename;
+        no_of_chunks=stoi(noc);
+        chunks[username]=bitmap;
+    }
+    void delete_entry(string usrid)
+    {
+        if(chunks.find(usrid)!=chunks.end())
+            chunks.erase(usrid);
+    }
+    bool isEmpty()
+    {
+        if(chunks.size())
+            return false;
+        return true;
+    } 
+
+}; 
+
 class group
 {
     public:
@@ -17,32 +44,7 @@ class group
     unordered_map<string,string> users;
     //unordered_map<string,vector< set<sockaddr_in> >> files;
     unordered_map<string,string> pending_list;
-    class files_shared
-    {
-        public:
-        string name;
-        unordered_map<string,string> chunks; //This unordered maps user name to file chunks in form of username to binary string
-        int no_of_chunks;
-
-        files_shared(string username,string filename,string noc,string bitmap)
-        {
-            name=filename;
-            no_of_chunks=stoi(noc);
-            chunks[username]=bitmap;
-        }
-        void delete_entry(string usrid)
-        {
-            if(chunks.find(usrid)!=chunks.end())
-                chunks.erase(usrid);
-        }
-        bool isEmpty()
-        {
-            if(chunks.size())
-                return false;
-            return true;
-        } 
-
-    }; 
+    
 
     unordered_map<string,files_shared *> files;
 
@@ -57,6 +59,24 @@ class group
     {
         vector<string> temp;
         users.erase(usrid);
+        for(auto i=files.begin(); i!=files.end() ; i++)
+        {
+            i->second->delete_entry(usrid);
+            if(i->second->isEmpty())
+                temp.push_back(i->first);
+        }
+
+        for(string s:temp)
+        {
+            delete files[s];
+            files.erase(s);
+        }
+    }
+
+    void remove_user_temp(string usrid)
+    {
+        vector<string> temp;
+        //users.erase(usrid);
         for(auto i=files.begin(); i!=files.end() ; i++)
         {
             i->second->delete_entry(usrid);
@@ -121,8 +141,8 @@ class peers
     string peer_port;
     string username;
     string password;
-    unordered_map<string,string> sharable_files; //The file name will be mapped to binary string which tell which peices are there
-    unordered_map<string,string> file_group; //This helps to map file name to grpid
+    unordered_map<string,files_shared *> files; //The file name will be mapped to binary string which tell which peices are there
+    //unordered_map<string,string> file_group; //This helps to map file name to grpid
     unordered_set<string> usr_group; //All the groups in which this peer is
     peers(int soc,string ip,string port,string usr, string pass)
     {
@@ -135,6 +155,40 @@ class peers
     void remove_group(string group_id)
     {
         usr_group.erase(group_id);
+        vector<string> temp;
+        for(auto i=files.begin(); i!=files.end() ; i++)
+        {
+            i->second->delete_entry(group_id);
+            if(i->second->isEmpty())
+                temp.push_back(i->first);
+        }
+
+        for(string s:temp)
+        {
+            delete files[s];
+            files.erase(s);
+        }
+    }
+
+    void sharefile(string group_id,string filename,string chunk_no,string bitmap)
+    {
+        if(files.find(filename)==files.end())
+        {
+            files_shared *file1= new files_shared(group_id,filename,chunk_no,bitmap);
+            files[filename]=file1;
+        }
+        else
+        {
+            files[filename]->chunks[group_id]=bitmap;
+        }
+    }
+
+    ~peers()
+    {
+        for(auto i=files.begin(); i!=files.end() ; i++)
+        {
+            delete i->second;
+        }
     }
 };
 
@@ -165,6 +219,7 @@ char * leave_group(string username,string group_id);
 char * list_files(int com_soc,string username,string group_id);
 char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no,string bitmap);
 char * download_file(int com_soc,string username,string group_id,string filename);
+void logout(string username);
 
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
@@ -325,6 +380,7 @@ void * communication(void *connection)
         if(strcmp(buffer,"logout")==0)
         {
             ans=false;
+            logout(username);
             continue;
         }
         if(strcmp(buffer,"quit")==0)
@@ -459,7 +515,17 @@ bool authenticate(string username,string password)
     if(clients.find(username)==clients.end())
         return false;
     if( clients[username]->password== password)
+    {
+        for(auto i=clients[username]->files.begin();i!=clients[username]->files.end() ; i++)
+        {
+            for(auto j=i->second->chunks.begin(); j!=i->second->chunks.end();j++)
+            {
+                //j->first is grp id
+                groups[j->first]->sharefile(username,i->first,to_string(i->second->no_of_chunks),j->second);
+            }
+        }
         return true;
+    }
     return false;
 }
 //////////////////////////////////////////// Accepting a request //////////////////////////////////////////////
@@ -522,7 +588,7 @@ char * list_files(int com_soc,string username,string group_id)
         strcpy(temp,i->first.c_str());
         temp[i->first.length()]='\0';
         send(com_soc , temp , strlen(temp) , 0 );
-        usleep(1);
+        usleep(2);
     }
     return "stop";
 }
@@ -606,9 +672,12 @@ char * upload_file(int com_soc,string username,string filename,string group_id,s
     if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
         return "You are not part of this group";
     groups[group_id]->sharefile(username,filename,chunk_no,bitmap);
+    clients[username]->sharefile(group_id,filename,chunk_no,bitmap);
     //cout<<groups[group_id]->files[filename]->chunks[username]<<endl;
     return "Uploaded Successfully";
 }
+
+//////////////////////////////////////// Download File //////////////////////////////////////////////////
 
 char * download_file(int com_soc,string username,string group_id,string filename)
 {
@@ -632,4 +701,18 @@ char * download_file(int com_soc,string username,string group_id,string filename
         usleep(1);
     }
     return "stop\0";
+}
+
+
+/////////////////////////////////////////////////// Logout //////////////////////////////////////////////////
+
+void logout(string username)
+{
+    vector<string> grps;
+    for(auto i=clients[username]->usr_group.begin();i!=clients[username]->usr_group.end() ; i++)
+        grps.push_back(*i);
+    for(string grp:grps)
+    {
+        groups[grp]->remove_user_temp(username);
+    }
 }
