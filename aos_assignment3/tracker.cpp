@@ -16,7 +16,7 @@ class files_shared
     string name;
     unordered_map<string,string> chunks; //This unordered maps user name to file chunks in form of username/grpid to binary string
     int no_of_chunks;
-    files_shared(string username,string filename,string noc,string bitmap)
+    files_shared(string username,string filename,string noc,string bitmap="1")
     {
         name=filename;
         no_of_chunks=stoi(noc);
@@ -101,7 +101,7 @@ class group
         }
     }
 
-    void sharefile(string username,string filename,string chunk_no,string bitmap)
+    void sharefile(string username,string filename,string chunk_no,string bitmap="1")
     {
         if(files.find(filename)==files.end())
         {
@@ -126,7 +126,7 @@ class group
         for(auto i=files[filename]->chunks.begin();i!=files[filename]->chunks.end();i++)
         {
             string s=users[i->first];
-            s=s+" "+i->second;
+            //s=s+" "+i->second;
             //cout<<s<<endl;
             ans.push_back(s);
         }
@@ -188,7 +188,7 @@ class peers
             files.erase(filename);
         }
     }
-    void sharefile(string group_id,string filename,string chunk_no,string bitmap)
+    void sharefile(string group_id,string filename,string chunk_no,string bitmap="1")
     {
         if(files.find(filename)==files.end())
         {
@@ -225,6 +225,7 @@ unordered_map<string,peers *> clients;
 /////////////////////////////////// Function Declaration //////////////////////////////////////////////////////
 void * communication(void *connection);
 void * exiting(void *s);
+void * handler(void *args);
 char * create_account(int fd,string ip,string port,string username,string password);
 bool authenticate(string username,string password);
 void clearing();
@@ -235,7 +236,7 @@ char * accept_request(string owner,string group_id,string username);
 char * requests(int com_soc,string owner,string group_id);
 char * leave_group(string username,string group_id);
 char * list_files(int com_soc,string username,string group_id);
-char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no,string bitmap);
+char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no);
 char * download_file(int com_soc,string username,string group_id,string filename);
 char * stop_share(string username,string group_id,string filename);
 void logout(string username);
@@ -313,6 +314,8 @@ int main(int argc,char const *argv[])
     //cout<<valread;
     
 }
+
+
 //////////////////////////////////// Thread to handle the client //////////////////////////////////////////////
 void * communication(void *connection)
 {
@@ -455,7 +458,7 @@ void * communication(void *connection)
         {
             //code here
             //cout<<data<<endl;
-            reply=upload_file(com_soc,username,tokens[1],tokens[2],tokens[3],tokens[4]);
+            reply=upload_file(com_soc,username,tokens[1],tokens[2],tokens[3]);
         }
         else if(tokens[0]=="download_file")
         {
@@ -582,15 +585,16 @@ char * requests(int com_soc,string owner,string group_id)
     char temp[20]="Accepted";
     
     send(com_soc , temp , strlen(temp) , 0 );
-    usleep(1);
+    usleep(200);
     for(auto i=groups[group_id]->pending_list.begin();i!=groups[group_id]->pending_list.end() ; i++)
     {
         memset(temp,'\0',sizeof(temp));
         strcpy(temp,i->first.c_str());
         temp[i->first.length()]='\0';
         send(com_soc , temp , strlen(temp) , 0 );
-        usleep(1);
+        usleep(200);
     }
+    usleep(200);
     return "stop";
 }
 
@@ -604,15 +608,16 @@ char * list_files(int com_soc,string username,string group_id)
     char temp[20]="Accepted";
     
     send(com_soc , temp , strlen(temp) , 0 );
-    usleep(1);
+    usleep(200);
     for(auto i=groups[group_id]->files.begin();i!=groups[group_id]->files.end() ; i++)
     {
         memset(temp,'\0',sizeof(temp));
         strcpy(temp,i->first.c_str());
         temp[i->first.length()]='\0';
         send(com_soc , temp , strlen(temp) , 0 );
-        usleep(2);
+        usleep(200);
     }
+    usleep(200);
     return "stop";
 }
 
@@ -702,14 +707,14 @@ void clearing()
 
 ///////////////////////////////////// Upload File ////////////////////////////////////////////////////////
 
-char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no,string bitmap)
+char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no)
 {
     if(groups.find(group_id)==groups.end())
         return "Group Doesn't Exist";
     if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
         return "You are not part of this group";
-    groups[group_id]->sharefile(username,filename,chunk_no,bitmap);
-    clients[username]->sharefile(group_id,filename,chunk_no,bitmap);
+    groups[group_id]->sharefile(username,filename,chunk_no);
+    clients[username]->sharefile(group_id,filename,chunk_no);
     //cout<<groups[group_id]->files[filename]->chunks[username]<<endl;
     return "Uploaded Successfully";
 }
@@ -723,21 +728,28 @@ char * download_file(int com_soc,string username,string group_id,string filename
         return "Group Doesn't Exist";
     if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
         return "You are not part of this group";
+    if(groups[group_id]->files.find(filename)==groups[group_id]->files.end())
+        return "No such file exist";
     //cout<<"Before call"<<endl;
-    vector<string> det=groups[group_id]->getfiledetails(filename);
+    
     char temp[1000]="Accepted";
     //cout<<"Aftercall"<<endl;    
     send(com_soc , temp , strlen(temp) , 0 );
-    usleep(1);
-    for(string s:det)
+    vector<string> det=groups[group_id]->getfiledetails(filename);
+    usleep(200);
+    string header=filename+" "+to_string(groups[group_id]->files[filename]->no_of_chunks);
+    det.insert(det.begin(),header);
+    for(int i=0;i<det.size();i++)
     {
         memset(temp,'\0',sizeof(temp));
-        strcpy(temp,s.c_str());
-        temp[s.length()]='\0';
+        strcpy(temp,det[i].c_str());
+        temp[det[i].length()]='\0';
         send(com_soc , temp , strlen(temp) , 0 );
-        usleep(1);
+        usleep(20);
     }
-    return "stop\0";
+    usleep(200);
+    upload_file(com_soc,username,filename,group_id,to_string(groups[group_id]->files[filename]->no_of_chunks));
+    return "stop";
 }
 
 
