@@ -105,12 +105,13 @@ string getfilename(string path);
 int getfilesize(string file);
 string getbitmap(int n);
 string get0bitmap(int n);
-void clearing();
+void clearing(int sig);
 
 ///////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
 {
-    atexit(clearing);
+    signal(SIGINT, clearing);
+    //atexit(clearing);
     string ip(argv[1]);
     initialize(ip);
 
@@ -773,9 +774,9 @@ void * download_chunk(void *arg)
     return NULL;
 }
 //////////////////////////////// Clearing out ////////////////////////////////////////////////////////////////
-void clearing()
+void clearing(int sig)
 {
-    cout<<client1<<endl;
+    // cout<<client1<<endl;
     string s="quit";
     sending(client1,s);
     for(auto i=files_shared.begin(); i!=files_shared.end();i++)
