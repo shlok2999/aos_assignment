@@ -577,7 +577,7 @@ void * download_file(void *arg)
         chunk_detail c(i,peers[peers.size()-1],header[0],fd,"");
         //pthread_create(&threads[i-1],NULL,download_chunk,c);
         download_chunk(c);
-        usleep(100);
+        //usleep(100);
     }
 
     // for(int i=0;i<num_of_chunks;i++)
