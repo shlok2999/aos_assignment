@@ -571,13 +571,13 @@ void * download_file(void *arg)
     //cout<<"Converted to char array"<<endl;
     int fd=open(file_desc,O_WRONLY | O_CREAT, S_IRUSR| S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
 
-    for(int i=1;i<num_of_chunks+1;i++)
+    for(int i=0;i<num_of_chunks;i++)
     {
         cout<<"Creating a thread"<<endl;
         chunk_detail c(i,peers[peers.size()-1],header[0],fd,"");
         //pthread_create(&threads[i-1],NULL,download_chunk,c);
         download_chunk(c);
-        //usleep(100000);
+        usleep(100);
     }
 
     // for(int i=0;i<num_of_chunks;i++)
@@ -592,8 +592,6 @@ void * download_file(void *arg)
     delete temp;
     return NULL;
 }
-
-
 
 /////////////////////////////////////// Upload File ////////////////////////////////////////////////////////
 
@@ -618,14 +616,16 @@ void * upload_file(void *arg)
     char file[FILENAME_MAX];
     
     strcpy(file,files_shared[tokens[1]]->destination.c_str());
-    file[tokens[1].length()]='\0';
+    file[files_shared[tokens[1]]->destination.length()]='\0';
     //cout<<file<<flush;
-    int chunk_num=stoi(tokens[0]) -1;
+    int chunk_num=stoi(tokens[0]);
     int chunk_offset=chunk_num*file_buffer_size;
     char buff[file_buffer_size];
-    
+    cout << "Opening " << file << endl;
     int fd=open(file,O_RDONLY);
-    int n=pread(fd,buff,sizeof(buff),chunk_offset);
+    cout << "FD: " << fd << endl;
+    int n=pread(fd,buff,file_buffer_size,chunk_offset);
+    cout << n << " chars read" << endl;
     send(com_soc,buff,n,0);
     memset(buffer,'\0',sizeof(buffer));
     // recv(com_soc,buffer , sizeof(buffer) , 0);
@@ -754,7 +754,7 @@ void download_chunk(chunk_detail args)
     connecting(newconnect,args.ip);
 
     string s_msg=to_string(args.num) + " " + args.file;
-    
+    cout<<"Sending Request for chunk"<<args.num<<endl;
     sending(newconnect,s_msg);
     char* buff = new char[file_buffer_size];
     int file_pointer=0;
@@ -765,8 +765,8 @@ void download_chunk(chunk_detail args)
             break; 
         file_pointer+=n;
     }
-    cout<<"file recieved in buffer"<<endl;
-    int file_offset=(args.num-1)*file_buffer_size;
+    cout<<"file recieved in buffer for chunk"<<args.num<<endl;
+    int file_offset=(args.num)*file_buffer_size;
     cout<<"File Pointer:"<<file_pointer;
     pwrite(args.fd,buff,file_pointer,file_offset);
     cout<<"Written in file"<< endl;
