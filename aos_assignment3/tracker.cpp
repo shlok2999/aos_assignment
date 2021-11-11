@@ -821,7 +821,7 @@ string getip(const char* filename,const char *no)
         ips.push_back(s); 
     }
 
-    return ips[num-1];
+    return ips[0];
 }
 
 //////////////////////////////////////// Initializing socket ////////////////////////////////////////////

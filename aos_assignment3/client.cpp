@@ -108,6 +108,7 @@ int getfilesize(string file);
 string getbitmap(int n);
 string get0bitmap(int n);
 void clearing(int sig);
+string getip(const char* filename);
 
 ///////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
@@ -118,7 +119,7 @@ int main(int argc,char const *argv[])
     initialize(ip);
 
     //Connecting with a tracker
-    string server_ip(argv[2]);
+    string server_ip=getip(argv[2]);
     tracker_ip=server_ip;
     int newconnect=connecting(client1,server_ip);
     
@@ -802,4 +803,30 @@ void clearing(int sig)
     
     exit(0);
 
+}
+
+/////////////////////////////////////// Getting ip from file ////////////////////////////////////////////////////
+
+string getip(const char* filename)
+{
+    //int num=atoi(no);
+    vector<string> ips;
+     FILE* file = fopen(filename, "r");
+    if(filename==NULL)
+    {
+        cout<<"unable to retrieve ip...Exiting server";
+        exit(0);
+    }
+
+    char buffer[1024]={0};
+    while (fgets(buffer, sizeof(buffer), file)) {
+        /* note that fgets don't strip the terminating \n, checking its
+           presence would allow to handle lines longer that sizeof(line) */
+        string s(buffer);
+        if(s.find('\n')!=-1)
+            s.pop_back();
+        ips.push_back(s); 
+    }
+
+    return ips[0];
 }
