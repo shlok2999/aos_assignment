@@ -6,6 +6,8 @@
 #include<unistd.h>
 #include<string.h>
 #include<pthread.h>
+#include <netdb.h>
+#include<arpa/inet.h>
 
 using namespace std;
 ///////////////////////////////// User Defined Classes ///////////////////////////////////////////////////
@@ -218,6 +220,9 @@ struct arguments //No londer required
 ///////////////////////////////////// Global variables ////////////////////////////////////////////////////////
 
 int port=2020;
+int server;
+string my_address,my_port;
+struct sockaddr_in server_address,client_address;
 pthread_t exit_thread;
 unordered_map<string,group *> groups;
 unordered_map<string,peers *> clients;
@@ -240,60 +245,66 @@ char * upload_file(int com_soc,string username,string filename,string group_id,s
 char * download_file(int com_soc,string username,string group_id,string filename);
 char * stop_share(string username,string group_id,string filename);
 void logout(string username);
+string getip(const char* file,const char* no);
+void initialize(string ip);
 
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
 {
     //Creating a socket
     atexit(clearing);
-    int server=socket(AF_INET, SOCK_STREAM , 0);
-    if(server<=0)
-    {
-        cout<<"Socket creation Failed";
-        exit(1);
-    }
-    else
-        cout<<"Socket established\n";
+
+    //cout<<"hello"<endl;
+    string ip=getip(argv[1],argv[2]);
+    initialize(ip);
+    // int server=socket(AF_INET, SOCK_STREAM , 0);
+    // if(server<=0)
+    // {
+    //     cout<<"Socket creation Failed";
+    //     exit(1);
+    // }
+    // else
+    //     cout<<"Socket established\n";
     
-    //port=atoi(argv[1]);
+    // //port=atoi(argv[1]);
     
-    //Giving address and port to socket to which it has to bind to
-    struct sockaddr_in socket_address,client_address;
-    socket_address.sin_family=AF_INET;
-    socket_address.sin_port=htons(port);
-    socket_address.sin_addr.s_addr=INADDR_ANY;
-    memset(&(socket_address.sin_zero),0,8);
-    //Setting socket options so that if by 
-    //chance if someother socket is uding that port then our socket should also able to use that port
-    int option=1;
-    int socket_option=setsockopt(server,SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
-    if(!socket_option)
-    {
-        cout<<"Now the socket will be easily bounded\n";
-    }
-    else
-    {
-        cout<<"Not able to set socket option\n";
-        exit(1);
-    }
-    int bind_server=bind(server,(struct sockaddr*)&socket_address, sizeof(socket_address)); //Binded socket to port and address
-    if(bind_server<0)
-    {
-        cout<<"Binding failed\n";
-        exit(1);
-    }
-    else
-    {
-        cout<<"Binding Done\n";
-    }
-    int server_listen=listen(server,5);
-    if(server_listen<0)
-    {
-        cout<<"Couldn't Listen to server\n";
-        exit(1);
-    }
-    else
-        cout<<"Server has started to listen\n";
+    // //Giving address and port to socket to which it has to bind to
+    // struct sockaddr_in socket_address,client_address;
+    // socket_address.sin_family=AF_INET;
+    // socket_address.sin_port=htons(port);
+    // socket_address.sin_addr.s_addr=INADDR_ANY;
+    // memset(&(socket_address.sin_zero),0,8);
+    // //Setting socket options so that if by 
+    // //chance if someother socket is uding that port then our socket should also able to use that port
+    // int option=1;
+    // int socket_option=setsockopt(server,SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+    // if(!socket_option)
+    // {
+    //     cout<<"Now the socket will be easily bounded\n";
+    // }
+    // else
+    // {
+    //     cout<<"Not able to set socket option\n";
+    //     exit(1);
+    // }
+    // int bind_server=bind(server,(struct sockaddr*)&socket_address, sizeof(socket_address)); //Binded socket to port and address
+    // if(bind_server<0)
+    // {
+    //     cout<<"Binding failed\n";
+    //     exit(1);
+    // }
+    // else
+    // {
+    //     cout<<"Binding Done\n";
+    // }
+    // int server_listen=listen(server,5);
+    // if(server_listen<0)
+    // {
+    //     cout<<"Couldn't Listen to server\n";
+    //     exit(1);
+    // }
+    // else
+    //     cout<<"Server has started to listen\n";
     
     memset((char*)&(client_address),'\0',sizeof(client_address));
     socklen_t client_length = sizeof(client_address);
@@ -783,5 +794,80 @@ void logout(string username)
     for(string grp:grps)
     {
         groups[grp]->remove_user_temp(username);
+    }
+}
+
+
+///////////////////////////////////////// Get ip from file ////////////////////////////////////////////////////
+
+string getip(const char* filename,const char *no)
+{
+    int num=atoi(no);
+    vector<string> ips;
+     FILE* file = fopen(filename, "r");
+    if(filename==NULL)
+    {
+        cout<<"unable to retrieve ip...Exiting server";
+        exit(0);
+    }
+
+    char buffer[1024]={0};
+    while (fgets(buffer, sizeof(buffer), file)) {
+        /* note that fgets don't strip the terminating \n, checking its
+           presence would allow to handle lines longer that sizeof(line) */
+        string s(buffer);
+        if(s.find('\n')!=-1)
+            s.pop_back();
+        ips.push_back(s); 
+    }
+
+    return ips[num-1];
+}
+
+//////////////////////////////////////// Initializing socket ////////////////////////////////////////////
+void initialize(string ip)
+{
+    server=socket(AF_INET, SOCK_STREAM , 0);
+    // if((client1=socket(AF_INET, SOCK_STREAM , 0))<0)
+    //     cout<<"Errror in soc";
+    if(server<=0)
+    {
+        cout<<"Socket creation Failed";
+        exit(1);
+    }
+    
+    char address[30];
+    int index=ip.find(':');
+    my_port=ip.substr(index+1);
+    port=stoi(my_port);
+    ip=ip.substr(0,index);
+    my_address=ip;
+    strcpy(address,ip.c_str());
+    address[ip.length()]='\0';
+    //cout<<address;
+    //Making this client as server
+    struct hostent *client_add = gethostbyname(address);
+    
+    server_address.sin_family=AF_INET;
+    server_address.sin_port=htons(port);
+    bcopy((char *)client_add->h_addr,(char *)&server_address.sin_addr.s_addr,client_add->h_length);
+    int option=1;
+    int socket_option=setsockopt(server,SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &option, sizeof(option));
+    if(socket_option!=0)
+    {
+        cout<<"Not able to set socket option\n";
+        exit(1);
+    }
+    int bind_client=bind(server,(struct sockaddr*)&server_address, sizeof(server_address)); //Binded socket to port and address
+    if(bind_client<0)
+    {
+        cout<<"Binding failed\n";
+        exit(1);
+    }
+    int client_listen=listen(server,1000);
+    if(client_listen<0)
+    {
+        cout<<"Couldn't Listen to server\n";
+        exit(1);
     }
 }
