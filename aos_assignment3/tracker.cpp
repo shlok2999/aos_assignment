@@ -95,6 +95,8 @@ class group
 
     void stop_sharing(string username,string filename)
     {
+        if(files.find(filename)==files.end())
+            return ;
         files[filename]->delete_entry(username);
         if(files[filename]->isEmpty())
         {
@@ -183,6 +185,8 @@ class peers
     }
     void stop_sharing(string grpid,string filename)
     {
+        if(files.find(filename)==files.end())
+            return ;
         files[filename]->delete_entry(grpid);
         if(files[filename]->isEmpty())
         {
@@ -247,6 +251,7 @@ char * stop_share(string username,string group_id,string filename);
 void logout(string username);
 string getip(const char* file,const char* no);
 void initialize(string ip);
+void quit(string username);
 
 ///////////////////////////////////// Main Function ///////////////////////////////////////////////////////////
 int main(int argc,char const *argv[])
@@ -339,9 +344,11 @@ void * communication(void *connection)
     {
         //char *reply;
         ans=false;
-        cout<<"In checking phase\n";
+        //cout<<"In checking phase\n";
+
         char buffer[1024]={0};
         int valread = read( com_soc , buffer, 1024);
+        cout<<"Message recieved\n";
         string data(buffer);
         if(strcmp(buffer,"quit")==0)
         {
@@ -367,6 +374,8 @@ void * communication(void *connection)
         }
         else
             reply="First create / log in first";
+        
+        cout<<"Message sent\n";
         send(com_soc , reply , strlen(reply) , 0 );
 
         if(ans)
@@ -375,15 +384,17 @@ void * communication(void *connection)
     }
     while(1)
     {
-        cout<<"In command phase\n";
+        //cout<<"In command phase\n";
         //This is for checking if the user is login or not?
         while(!ans)
         {
-            cout<<"In checking phase\n";
+            
             char buff[1024]={0};
             int valread = read( com_soc , buff, 1024);
+            cout<<"Message recieved\n";
             if(strcmp(buff,"quit")==0)
             {
+                quit(username);
                 ans=false;
                 return NULL;
             }
@@ -410,6 +421,7 @@ void * communication(void *connection)
             {
                 reply="First create / log in first";
             }
+            cout<<"Message Sent\n";
             send(com_soc , reply , strlen(reply) , 0 );
             memset(buff,'\0',1024);
         }
@@ -418,6 +430,7 @@ void * communication(void *connection)
         
         char buffer[1024]={0};
         int valread = recv( com_soc , buffer, 1024, 0); ///Replace in place of read
+        cout<<"Message recieved\n";
         if(strcmp(buffer,"logout")==0)
         {
             ans=false;
@@ -427,6 +440,7 @@ void * communication(void *connection)
         if(strcmp(buffer,"quit")==0)
         {
             ans=false;
+            quit(username);
             return NULL;
         }
         //cout<<buffer;
@@ -870,4 +884,18 @@ void initialize(string ip)
         cout<<"Couldn't Listen to server\n";
         exit(1);
     }
+}
+
+
+//////////////////////////////////////////// Quit ///////////////////////////////////////////////////////////
+void quit(string username)
+{
+    vector<string> files;
+    
+    vector<string>grps;
+    for(auto i:clients[username]->usr_group)
+        grps.push_back(i);
+
+    for(string g:grps)
+        leave_group(username,g);
 }
