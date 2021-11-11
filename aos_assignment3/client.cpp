@@ -55,7 +55,7 @@ class download_file_args
     files_downloaded* d_data;
     download_file_args(vector<string> list,string usr, files_downloaded* d)
     {
-        cout<<"Object Created";
+        // cout<<"Object Created";
         peers=list;
         username=usr;
         d_data = d;
@@ -231,7 +231,7 @@ void * communication(void * arg)
             {
                 files_shared[file_name]= new files_sharable(file_name,tokens[1],bitmap);
             }
-            cout<<files_shared[file_name]->bitmap<<endl;
+            //cout<<files_shared[file_name]->bitmap<<endl;
             s=tokens[0]+" "+file_name+" "+tokens[2]+" "+to_string(n);
             sending(client,s);
 
@@ -262,7 +262,7 @@ void * communication(void * arg)
                         break;
                     string p(users);
                     list_of_peers.push_back(p);
-                    cout<<p<<endl;
+                    //cout<<p<<endl;
                 
                 }
                 
@@ -274,7 +274,7 @@ void * communication(void * arg)
                 files_downloaded* new_d =new files_downloaded(tokens[2],dest,tokens[1]);
                 vector<string> header=tokenizer(list_of_peers[0]);
                 string bitmap=get0bitmap(stoi(header[1]));
-                cout<<"Files data fetched"<<endl;
+                //cout<<"Files data fetched"<<endl;
                     
                 files_shared[tokens[2]]=new files_sharable(tokens[2],dest,bitmap);
 
@@ -496,25 +496,25 @@ bool comparator(vector<pair<int,string>> a,vector<pair<int,string>>b)
 void * download_file(void *arg)
 {
 
-    cout<<"In download File"<<endl;
+    // cout<<"In download File"<<endl;
     download_file_args args=*((download_file_args*)arg);
     
     download_file_args *temp=(download_file_args*)arg;
     
     vector<string> peers=args.peers;
-    cout<<"retrieveing data"<<endl;
+    // cout<<"retrieveing data"<<endl;
     //string username=args.username;
     vector<string> header=tokenizer(peers[0]);
-    cout<<"Before erase"<<endl;
-    for(string s:peers)
-        cout<<s<<endl;
+    // cout<<"Before erase"<<endl;
+    // for(string s:peers)
+    //     cout<<s<<endl;
     
     peers.erase(peers.begin());
-    cout<<"After erase:"<<endl;
-    for(string s:peers)
-        cout<<s<<endl;
+    // cout<<"After erase:"<<endl;
+    // for(string s:peers)
+    //     cout<<s<<endl;
     vector<string> details;
-    cout<<header[0]<<endl;
+    //cout<<header[0]<<endl;
     for(string peer:peers)
     {
         int newconnect=socket(AF_INET, SOCK_STREAM , 0);
@@ -523,7 +523,7 @@ void * download_file(void *arg)
             cout<<"Error in creating socket"<<endl;
         }
         connecting(newconnect,peer);
-        cout<<"connected to "<<peer<<endl;
+        //cout<<"connected to "<<peer<<endl;
         string s="bitmap "+header[0];
         sending(newconnect,s);
         char* buffer = new char[1024];
@@ -536,14 +536,14 @@ void * download_file(void *arg)
         }
         string bitmap(buffer);
         details.push_back(bitmap);
-        cout<<"Bitmap recieved is:"<<bitmap<<endl;
+        //cout<<"Bitmap recieved is:"<<bitmap<<endl;
         close(newconnect);
         delete buffer;
 
     }
 
-    cout<<"Bitmap Retreived "<<endl;
-    cout<<header[1]<<endl;
+    //cout<<"Bitmap Retreived "<<endl;
+    //cout<<header[1]<<endl;
     int num_of_chunks=stoi(header[1]);
     // vector<pair<int,string>> chunks[num_of_chunks+2];
     // for(int j=0;j<details.size();j++)
@@ -573,7 +573,7 @@ void * download_file(void *arg)
 
     for(int i=0;i<num_of_chunks;i++)
     {
-        cout<<"Creating a thread"<<endl;
+        //cout<<"Creating a thread"<<endl;
         chunk_detail c(i,peers[peers.size()-1],header[0],fd,"");
         //pthread_create(&threads[i-1],NULL,download_chunk,c);
         download_chunk(c);
@@ -588,7 +588,7 @@ void * download_file(void *arg)
     close(fd);
     temp->d_data->status='C';
     files_shared[header[0]]->bitmap=getbitmap(num_of_chunks);
-    cout<<"Download Completed"<<endl;
+    //cout<<"Download Completed"<<endl;
     delete temp;
     return NULL;
 }
@@ -597,14 +597,14 @@ void * download_file(void *arg)
 
 void * upload_file(void *arg)
 {
-   cout<<"In upload phase"<<endl;
+//    cout<<"In upload phase"<<endl;
    int com_soc=*(int *)arg;
-   cout<<com_soc<<endl;
+//    cout<<com_soc<<endl;
    char buffer[1024]={0};
    int recieve=recv(com_soc,buffer,sizeof(buffer),0);
    string msg(buffer);
    vector<string> tokens=tokenizer(msg);
-   cout<<msg<<endl;
+//    cout<<msg<<endl;
    if(tokens[0]=="bitmap")
    {
        string s=files_shared[tokens[1]]->bitmap;
@@ -621,11 +621,11 @@ void * upload_file(void *arg)
     int chunk_num=stoi(tokens[0]);
     int chunk_offset=chunk_num*file_buffer_size;
     char buff[file_buffer_size];
-    cout << "Opening " << file << endl;
+    //cout << "Opening " << file << endl;
     int fd=open(file,O_RDONLY);
-    cout << "FD: " << fd << endl;
+    // cout << "FD: " << fd << endl;
     int n=pread(fd,buff,file_buffer_size,chunk_offset);
-    cout << n << " chars read" << endl;
+    // cout << n << " chars read" << endl;
     send(com_soc,buff,n,0);
     memset(buffer,'\0',sizeof(buffer));
     // recv(com_soc,buffer , sizeof(buffer) , 0);
@@ -746,7 +746,7 @@ void download_chunk(chunk_detail args)
     //chunk_detail args=*(chunk_detail*)arg;
     //chunk_detail *temp=(chunk_detail*)arg;
     
-    cout<<"In downloading phase"<<endl;
+    // cout<<"In downloading phase"<<endl;
     int newconnect=socket(AF_INET, SOCK_STREAM , 0);
     if(newconnect<0)
         return;
@@ -754,7 +754,7 @@ void download_chunk(chunk_detail args)
     connecting(newconnect,args.ip);
 
     string s_msg=to_string(args.num) + " " + args.file;
-    cout<<"Sending Request for chunk"<<args.num<<endl;
+    // cout<<"Sending Request for chunk"<<args.num<<endl;
     sending(newconnect,s_msg);
     char* buff = new char[file_buffer_size];
     int file_pointer=0;
@@ -765,11 +765,11 @@ void download_chunk(chunk_detail args)
             break; 
         file_pointer+=n;
     }
-    cout<<"file recieved in buffer for chunk"<<args.num<<endl;
+    // cout<<"file recieved in buffer for chunk"<<args.num<<endl;
     int file_offset=(args.num)*file_buffer_size;
-    cout<<"File Pointer:"<<file_pointer;
+    // cout<<"File Pointer:"<<file_pointer;
     pwrite(args.fd,buff,file_pointer,file_offset);
-    cout<<"Written in file"<< endl;
+    // cout<<"Written in file"<< endl;
     // close(fd);
     // cout<<"Closed file desc"<<endl;
     //char msg[256]="Completed";
@@ -777,14 +777,14 @@ void download_chunk(chunk_detail args)
     //files_shared[args.file]->update_bitmap(args.num-1);
     // string s="Completed";
     // sending(newconnect,s);
-    cout<<"Updated Bitmap"<<endl;
+    // cout<<"Updated Bitmap"<<endl;
     close(newconnect);
-    cout<<"Closed Socket"<<endl;
+    // cout<<"Closed Socket"<<endl;
     // connecting(newconnect,args.fd);
     // string s="upload_file "+args.file+" ";
-    //cout<<"Downloaded chunk"<<file_offset<<endl;
+    // cout<<"Downloaded chunk"<<file_offset<<endl;
     //delete temp;
-    cout<<"Deleting temp"<<endl;
+    // cout<<"Deleting temp"<<endl;
 }
 //////////////////////////////// Clearing out ////////////////////////////////////////////////////////////////
 void clearing(int sig)

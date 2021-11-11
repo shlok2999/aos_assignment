@@ -495,7 +495,7 @@ void * communication(void *connection)
         {
             reply=buffer;
         }
-        cout<<"\nMessage sent\n";
+        cout<<"Message sent\n";
         send(com_soc , reply , strlen(reply) , 0 );
     }
 }

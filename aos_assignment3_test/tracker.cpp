@@ -227,7 +227,7 @@ void * communication(void *connection);
 void * exiting(void *s);
 void * handler(void *args);
 char * create_account(int fd,string ip,string port,string username,string password);
-bool authenticate(string username,string password);
+bool authenticate(string username,string password,string ip,string port);
 void clearing();
 vector<string> tokenizer(string command);
 char * create_group(string username,string group_id);
@@ -348,7 +348,7 @@ void * communication(void *connection)
         {
             username=tokens[1];
             string password=tokens[2];
-            ans=authenticate(username,password);
+            ans=authenticate(username,password,tokens[3],tokens[4]);
             if(ans)
                 reply="Log in sucessful";
             else
@@ -378,18 +378,26 @@ void * communication(void *connection)
             }
             string data(buff);
             vector<string> tokens=tokenizer(data);
-            if(tokens[0]!="login")
-                reply="Login first\n";
-            else
+            if(tokens[0]=="create_user")
+            {
+                username=tokens[1];
+                string password=tokens[2];
+                reply=create_account(com_soc,tokens[3],tokens[4],username,password);
+            }
+            else if(tokens[0]=="login")
             {
                 username=tokens[1];
                 string password=tokens[2];
             //char *reply;
-                ans=authenticate(username,password);
+                ans=authenticate(username,password,tokens[3],tokens[4]);
                 if(ans)
                     reply="Log in sucessful";
                 else
                     reply="Login Failed .... try again";
+            }
+            else
+            {
+                reply="First create / log in first";
             }
             send(com_soc , reply , strlen(reply) , 0 );
             memset(buff,'\0',1024);
@@ -414,7 +422,17 @@ void * communication(void *connection)
         string data(buffer);
         vector<string> tokens=tokenizer(data);
         //cout<<tokens[0]<<endl<<flush;
-        if(tokens[0]=="create_group")
+        if(tokens[0]=="create_user")
+        {
+            username=tokens[1];
+            string password=tokens[2];
+            reply=create_account(com_soc,tokens[3],tokens[4],username,password);
+        }
+        else if(tokens[0]=="login")
+        {
+            reply="Logout first to log in";
+        }
+        else if(tokens[0]=="create_group")
         {
             //code here
             reply=create_group(username,tokens[1]);
@@ -477,7 +495,7 @@ void * communication(void *connection)
         {
             reply=buffer;
         }
-        cout<<"\nMessage sent\n";
+        cout<<"Message sent\n";
         send(com_soc , reply , strlen(reply) , 0 );
     }
 }
@@ -536,7 +554,7 @@ char * leave_group(string username,string group_id)
 
 /////////////////////////////////////// Authenticate User //////////////////////////////////////////////////
 
-bool authenticate(string username,string password)
+bool authenticate(string username,string password,string ip,string port)
 {
     if(clients.find(username)==clients.end())
         return false;
@@ -550,6 +568,8 @@ bool authenticate(string username,string password)
                 groups[j->first]->sharefile(username,i->first,to_string(i->second->no_of_chunks),j->second);
             }
         }
+        clients[username]->peer_ip=ip;
+        clients[username]->peer_port=port;
         return true;
     }
     return false;
@@ -585,16 +605,16 @@ char * requests(int com_soc,string owner,string group_id)
     char temp[20]="Accepted";
     
     send(com_soc , temp , strlen(temp) , 0 );
-    usleep(200);
+    usleep(2000);
     for(auto i=groups[group_id]->pending_list.begin();i!=groups[group_id]->pending_list.end() ; i++)
     {
         memset(temp,'\0',sizeof(temp));
         strcpy(temp,i->first.c_str());
         temp[i->first.length()]='\0';
         send(com_soc , temp , strlen(temp) , 0 );
-        usleep(200);
+        usleep(2000);
     }
-    usleep(200);
+    usleep(2000);
     return "stop";
 }
 
@@ -608,16 +628,16 @@ char * list_files(int com_soc,string username,string group_id)
     char temp[20]="Accepted";
     
     send(com_soc , temp , strlen(temp) , 0 );
-    usleep(200);
+    usleep(2000);
     for(auto i=groups[group_id]->files.begin();i!=groups[group_id]->files.end() ; i++)
     {
         memset(temp,'\0',sizeof(temp));
         strcpy(temp,i->first.c_str());
         temp[i->first.length()]='\0';
         send(com_soc , temp , strlen(temp) , 0 );
-        usleep(200);
+        usleep(2000);
     }
-    usleep(200);
+    usleep(2000);
     return "stop";
 }
 
@@ -736,7 +756,7 @@ char * download_file(int com_soc,string username,string group_id,string filename
     //cout<<"Aftercall"<<endl;    
     send(com_soc , temp , strlen(temp) , 0 );
     vector<string> det=groups[group_id]->getfiledetails(filename);
-    usleep(200);
+    usleep(2000);
     string header=filename+" "+to_string(groups[group_id]->files[filename]->no_of_chunks);
     det.insert(det.begin(),header);
     for(int i=0;i<det.size();i++)
@@ -745,9 +765,9 @@ char * download_file(int com_soc,string username,string group_id,string filename
         strcpy(temp,det[i].c_str());
         temp[det[i].length()]='\0';
         send(com_soc , temp , strlen(temp) , 0 );
-        usleep(200);
+        usleep(20000);
     }
-    usleep(200);
+    usleep(20000);
     upload_file(com_soc,username,filename,group_id,to_string(groups[group_id]->files[filename]->no_of_chunks));
     return "stop";
 }
