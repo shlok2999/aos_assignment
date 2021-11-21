@@ -543,10 +543,11 @@ void write_file()
             free_blocks.push(node.direct_pointer[i]);
             super.free_db[node.direct_pointer[i]]=0;
             node.direct_pointer[i]=-1;
+            
         }
     }
 
-    
+    node.file_size=0;
     string content="";
     while(1)
     {
@@ -558,6 +559,7 @@ void write_file()
         content=content + s;
     }
     content.pop_back();
+    int j=0;
     while( !free_blocks.empty() && content!="")
     {
         long long int block_no=free_blocks.front();
@@ -566,12 +568,17 @@ void write_file()
         long long int offset=block_no * Block_size;
         if(content.size()<Block_size)
         {
-            
+            node.direct_pointer[j]=block_no;
+            j++;
+            node.file_size+=content.size();
             write_content(offset,content);
             content="";
         }
         else
         {
+            node.direct_pointer[j]=block_no;
+            j++;
+            node.file_size+=Block_size;
             write_content(offset,content.substr(0,Block_size));
             content=content.substr(Block_size);
         }
