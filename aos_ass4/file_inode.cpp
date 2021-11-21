@@ -549,16 +549,19 @@ void write_file()
 
     node.file_size=0;
     string content="";
+    bool flag=false;
     while(1)
     {
         string s="";
         getline(cin >> ws,s);
         if(s==":q")
             break;
+        flag=true;
         s=s+'\n';
         content=content + s;
     }
-    content.pop_back();
+    if(flag)
+        content.pop_back();
     int j=0;
     while( !free_blocks.empty() && content!="")
     {
@@ -601,6 +604,7 @@ void write_file()
 void write_content(long long int offset, string content)
 {
     char buffer[Block_size]={0};
+    memset(buffer,'\0',sizeof(buffer));
     pwrite(fd,buffer,Block_size,offset);
 
     strcpy(buffer,content.c_str());
@@ -610,6 +614,101 @@ void write_content(long long int offset, string content)
 }
 
 //////////////////////////////////// Append File //////////////////////////////////////////////////////
+
+void append_file()
+{
+    int file;
+    cout<<"Enter the file descriptor:"<<endl;
+    cin>>file;
+    if(file_descriptors.find(file)==file_descriptors.end())
+    {
+        cout<<"Invalid File Descriptor"<<endl;
+        return;
+    }
+
+    if(file_descriptors[file]!= "write")
+    {
+        cout<<"File doesnot have read operations"<<endl;
+        return;
+    }
+    inode_structure &node=inode[file];
+    int i=0;
+
+    for(;i<10;i++)
+    {
+        if(node.direct_pointer[i]==-1)
+            break;
+    }
+    i--;
+    if(i==-1)
+        i=0;
+    
+
+    char buffer[Block_size]={0};
+    long long int offset=node.direct_pointer[i] * Block_size;
+    pread(fd,buffer,sizeof(buffer),offset);
+
+    string orig(buffer);
+    string content="";
+
+    if(orig.size()==Block_size)
+        i++;
+    else
+    {
+        content=orig;
+        free_blocks.push(node.direct_pointer[i]);
+        super.free_db[node.direct_pointer[i]]=0;
+    }
+    
+    bool flag=false;
+    while(1)
+    {
+        string s="";
+        getline(cin >> ws,s);
+        if(s==":q")
+            break;
+        flag=true;
+        s=s+'\n';
+        content=content + s;
+    }
+    if(flag)
+        content.pop_back();
+
+
+    while( !free_blocks.empty() && content!="")
+    {
+        long long int block_no=free_blocks.front();
+        free_blocks.pop();
+        super.free_db[block_no]=1;
+        long long int offset=block_no * Block_size;
+        if(content.size()<Block_size)
+        {
+            node.direct_pointer[i]=block_no;
+            i++;
+            node.file_size+=content.size();
+            write_content(offset,content);
+            content="";
+        }
+        else
+        {
+            node.direct_pointer[i]=block_no;
+            i++;
+            node.file_size+=Block_size;
+            write_content(offset,content.substr(0,Block_size));
+            content=content.substr(Block_size);
+        }
+    }
+
+    if(content!="")
+    {
+        cout<<"File was Partially appended as disk space is now full"<<endl;
+    }
+    else
+    {
+        cout<<"Appended to file successfully"<<endl;
+    }
+
+}
 
 /////////////////////////////////// Close File ////////////////////////////////////////////////////////
 
