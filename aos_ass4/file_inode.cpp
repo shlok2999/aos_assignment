@@ -8,7 +8,7 @@ using namespace std;
 ///////////////////////////////////// Constant Global Variables //////////////////////////////
 const size_t Block_size=4*1000; //4KB size of disk ball
 const size_t no_of_blocks=512*1000/4;
-const size_t no_of_inode=78654;
+const size_t no_of_inode=7865;
 ////////////////////////////////// Class Defination //////////////////////////////
 
 class inode_structure
@@ -38,7 +38,8 @@ class file_inode
     file_inode()
     {
         name=new char[FILENAME_MAX];
-        memset(name,'\0',sizeof(name));
+        //memset(name,'\0',sizeof(name));
+        strcpy(name,"");
         inode=-1;
     }
 };
@@ -56,7 +57,8 @@ class super_block
     super_block()
     {
         no_of_sup_block=ceil(sizeof(super_block)/Block_size);
-        no_of_bitmap_block=ceil((no_of_inode*sizeof(file_inode))/Block_size);
+        
+        no_of_bitmap_block=ceil((no_of_inode*4100)/Block_size);
         no_of_inode_block=ceil((no_of_inode*sizeof(inode_structure))/Block_size);
         no_of_data_block=no_of_data_block - no_of_inode_block - no_of_sup_block - no_of_bitmap_block;
         
@@ -75,10 +77,10 @@ class super_block
 };
 
 ///////////////////////////////////////////////// Global Variables ///////////////////////////////////
-inode_structure *inode;
-file_inode *files;
+inode_structure inode[no_of_inode];
+file_inode files[no_of_inode];
 super_block super;
-char *name;
+char name[FILENAME_MAX];
 unordered_map <string,int> file_to_inode;
 unordered_map <int,string> inode_to_file;
 queue <int> free_blocks;
@@ -116,9 +118,9 @@ int main()
     while (1)
     {
         int op=display_menu();
-        if(op ==1)
+        if(op == 1 )
             create_disk();
-        else if(op == 2)
+        else if(op == 2 )
             mount_disk();
         else
             break;
@@ -160,8 +162,12 @@ void create_disk()
     
     super_block meta;
     //cout<<no_of_inode;
-    file_inode files[no_of_inode];
-    inode_structure inode[no_of_inode];
+    file_inode f[no_of_inode];
+    inode_structure i[no_of_inode];
+
+    for(int i=0;i<no_of_inode;i++)
+        cout<<f[i].inode<<" "<<f[i].name<<endl;
+
 
     fseek(disk,0,SEEK_SET);
     fwrite(&meta,sizeof(meta),1,disk);
@@ -169,12 +175,13 @@ void create_disk()
     // Writing files' meta in disk 
     long long int offset = (meta.no_of_sup_block) *Block_size ;
     fseek(disk,offset,SEEK_SET);
-    fwrite(files,sizeof(file_inode),no_of_inode,disk);
-
+    fwrite(f,sizeof(file_inode),no_of_inode,disk);
+    cout<<offset<<endl;
     //Writing inodes of the file in the disk
     offset = (meta.no_of_sup_block + meta.no_of_bitmap_block) *Block_size ;
+    cout<<offset<<endl;
     fseek(disk,offset,SEEK_SET);
-    fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+    fwrite(i,sizeof(inode_structure),no_of_inode,disk);
 
     //closing file
     fclose(disk);
@@ -185,7 +192,7 @@ void create_disk()
 
 int display_menu()
 {
-    int option=1;
+    int option;
     cout<<"----------------------"<<endl;
     cout<<"1. Open Disk"<<endl;
     cout<<"2. Mount Disk"<<endl;
@@ -199,17 +206,21 @@ int display_menu()
 
 void mount_disk()
 {
+    string disk;
     char disk_name[FILENAME_MAX];
     cout<<"Enter the disk you want to mount:"<<endl;
-    cin>>disk_name;
+    getline(cin >> ws,disk);
+    strcpy(disk_name,disk.c_str());
+    //cin.getline(disk_name,FILENAME_MAX);
     strcpy(name,disk_name);
+    cout<<name<<endl;
     struct stat st;
     if(stat(disk_name,&st) == -1)
     {
         cout<<"No such disk exist"<<endl;
         return;
     }
-
+    cout<<"Going to loading disk";
     load_disk(disk_name);
     mount_disk_menu();
     unload_disk();
@@ -220,7 +231,8 @@ void mount_disk()
 void load_disk(char *disk_name)
 {
     // Reading file to main memory
-    FILE *disk=fopen( disk_name, "rb");
+    cout<<disk_name<<endl;
+    FILE *disk=fopen( disk_name, "rb+");
     if(disk == NULL)
     {
         cout<<"Unable to open file"<<endl;
@@ -228,28 +240,38 @@ void load_disk(char *disk_name)
     }
 
     fread(&super,sizeof(super_block),1,disk);
+    cout<<"Super block Read"<<endl;
 
-    files=new file_inode[no_of_inode];
+    // files=new file_inode[no_of_inode];
+    cout<<"New file array is created"<<endl;
     long long int offset = (super.no_of_sup_block) *Block_size ;
+    cout<<"Offset Calcultaed"<<endl;
     fseek(disk,offset,SEEK_SET);
+    cout<<"File pointer is set"<<endl;
     fread(files,sizeof(file_inode),no_of_inode,disk);
-
-    inode=new inode_structure[no_of_inode]; 
+    cout<<"Files data is read"<<endl;
+    //inode=new inode_structure[no_of_inode]; 
     offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    cout<<"Offset calculated again"<<endl;
     fseek(disk,offset,SEEK_SET);
+    cout<<"File pointer is set again to correct place"<<endl;
     fread(inode,sizeof(inode_structure),no_of_inode,disk);
-
+    cout<<"Inode is updated successfully"<<endl;
     fclose(disk);
 
-
+    cout<<"File is closed"<<endl;
     for(int i=0;i<no_of_inode;i++)
-        if(files[i].inode !=-1)
-        {
-            string filename(files[i].name);
-            file_to_inode[filename]=files[i].inode;
-            inode_to_file[files[i].inode]=filename;
-        }
-
+    {
+        cout<<i<<" "<<files[i].inode<<" "<<files[i].name<<endl;
+        // if(files[i].inode !=-1)
+        // {
+        //     cout<<files[i].name<<endl;
+        //     string filename(files[i].name);
+        //     file_to_inode[filename]=files[i].inode;
+        //     inode_to_file[files[i].inode]=filename;
+        // }
+    }
+    cout<<"Maps is initialized"<<endl;
     // Making bitmap
     for(int i=0;i<no_of_inode;i++)
         if(!super.free_inode[i])
@@ -362,6 +384,8 @@ void mount_disk_menu()
             cout<<"Wong option selected"<<endl;
         }
     }
+
+    close(fd);
 }
 
 ///////////////////////////////////////// Dsiplay Mount Menu //////////////////////////////////////
@@ -659,7 +683,7 @@ void append_file()
         free_blocks.push(node.direct_pointer[i]);
         super.free_db[node.direct_pointer[i]]=0;
     }
-    
+
     bool flag=false;
     while(1)
     {
@@ -712,4 +736,78 @@ void append_file()
 
 /////////////////////////////////// Close File ////////////////////////////////////////////////////////
 
+void close_file()
+{
+    int file;
+    cout<<"Enter the file descriptor:"<<endl;
+    cin>>file;
+    if(file_descriptors.find(file)==file_descriptors.end())
+    {
+        cout<<"Invalid File Descriptor"<<endl;
+        return;
+    }
+
+    file_descriptors.erase(file);
+    opened_files.erase(inode_to_file[file]);
+
+    cout<<"File closed successfully"<<endl;
+
+    return;
+}
+
 //////////////////////////////////// Delete File ///////////////////////////////////////////////////////
+
+void delete_file()
+{
+    string filename;
+    cout<<"Enter the filename";
+    getline(cin >> ws,filename);
+
+    if(opened_files.find(filename)!=opened_files.end())
+    {
+        cout<<"This file is opened so it can't be deleted"<<endl;
+        return;
+    }
+
+    if(file_to_inode.find(filename)==file_to_inode.end())
+    {
+        cout<<"No such file exists"<<endl;
+        return;
+    }
+
+    int node=file_to_inode[filename];
+    files[node].inode=-1;
+    strcpy(files[node].name,"");
+    free_inodes.push(node);
+    super.free_inode[node]=0;
+    inode[node].file_size=0;
+
+    for(int i=0;i<10;i++)
+        inode[node].direct_pointer[i]=-1;
+
+    file_to_inode.erase(filename);
+    inode_to_file.erase(node);    
+    cout<<"File Deleted Sucessfully"<<endl;
+}
+
+///////////////////////////////// List of Files ////////////////////////////////////////////////////////
+
+void list_of_files()
+{
+    for(auto i=file_to_inode.begin(); i!=file_to_inode.end() ; i++)
+    {
+        cout<<i->first<<"\t, node number:"<<i->second<<endl;
+
+    }
+}
+
+
+////////////////////////////////// List of open Files /////////////////////////////////////////////////
+
+void list_of_open_files()
+{
+    for(auto i=opened_files.begin(); i!=opened_files.end();i++)
+    {
+        cout<<i->first<<"\t, file descriptor:"<<i->second.first<<"\t, mode:"<<i->second.second<<endl;
+    }
+}
