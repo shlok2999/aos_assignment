@@ -41,7 +41,7 @@ class file_inode
     {
         //name=new char[FILENAME_MAX];
         //memset(name,'\0',sizeof(name));
-        //strcpy(name,"");
+        strcpy(name,"");
         inode=-1;
     }
 };
@@ -267,13 +267,13 @@ void load_disk(char *disk_name)
     for(int i=0;i<no_of_inode;i++)
     {
         cout<<i<<" "<<files[i].inode<<" "<<files[i].name<<endl;
-        // if(files[i].inode !=-1)
-        // {
-        //     cout<<files[i].name<<endl;
-        //     string filename(files[i].name);
-        //     file_to_inode[filename]=files[i].inode;
-        //     inode_to_file[files[i].inode]=filename;
-        // }
+        if(files[i].inode !=-1)
+        {
+            cout<<files[i].name<<endl;
+            string filename(files[i].name);
+            file_to_inode[filename]=files[i].inode;
+            inode_to_file[files[i].inode]=filename;
+        }
     }
     cout<<"Maps is initialized"<<endl;
     // Making bitmap
@@ -299,6 +299,7 @@ void unload_disk()
         exit(0);
     }
 
+    //Writing superblock
     fseek(disk,0,SEEK_SET);
     fwrite(&super,sizeof(super_block),1,disk);
 
@@ -626,7 +627,6 @@ void write_file()
 
     return;
 }
-
 ///////////////////////////////////// Write Content //////////////////////////////////////////////////
 
 void write_content(long long int offset, string content)
