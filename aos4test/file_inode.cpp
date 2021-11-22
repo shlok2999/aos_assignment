@@ -72,7 +72,7 @@ class super_block
 
         int n=no_of_sup_block + no_of_bitmap_block + no_of_inode_block;
         //cout<<n<<" "<<no_of_blocks<<" ";
-        for(int i=0;i<n;i++)
+        for(int i=0;i<=n;i++)
             free_db[i]=1;
     }
 
@@ -178,18 +178,18 @@ void create_disk()
     for(int i=0;i<no_of_inode;i++)
     {
         pwrite(f, (char*)&fi[i], sizeof(file_inode), offset);
-        offset+=Block_size;
+        offset+=sizeof(file_inode);
     }
 
     //Writing inodes of the file in the disk
-    // offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
     // fseek(disk,offset,SEEK_SET);
     // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
 
     for(int i=0;i<no_of_inode;i++)
     {
         pwrite(f, (char*)&in[i], sizeof(inode_structure), offset);
-        offset+=Block_size;
+        offset+=sizeof(inode_structure);
     }
 
     //closing file
@@ -260,18 +260,18 @@ void load_disk(char *disk_name)
     for(int i=0;i<no_of_inode;i++)
     {
         pread(fd, (char*)&files[i], sizeof(file_inode), offset);
-        offset+=Block_size;
+        offset+=sizeof(file_inode);
     }
 
     //Writing inodes of the file in the disk
-    // offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
     // fseek(disk,offset,SEEK_SET);
     // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
 
     for(int i=0;i<no_of_inode;i++)
     {
         pread(fd, (char*)&inode[i], sizeof(inode_structure), offset);
-        offset+=Block_size;
+        offset+=sizeof(inode_structure);
     }
 
     // // files=new file_inode[no_of_inode];
@@ -311,7 +311,10 @@ void load_disk(char *disk_name)
     
     for(int i=0;i<no_of_blocks;i++)
         if(!super.free_db[i])
+        {
+            cout<<i<<endl;
             free_blocks.push(i);
+        }
 
 }
 
@@ -338,18 +341,18 @@ void unload_disk()
     for(int i=0;i<no_of_inode;i++)
     {
         pwrite(fd, (char*)&files[i], sizeof(file_inode), offset);
-        offset+=Block_size;
+        offset+=sizeof(file_inode);
     }
 
     //Writing inodes of the file in the disk
-    // offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
     // fseek(disk,offset,SEEK_SET);
     // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
 
     for(int i=0;i<no_of_inode;i++)
     {
         pwrite(fd, (char*)&inode[i], sizeof(inode_structure), offset);
-        offset+=Block_size;
+        offset+=sizeof(inode_structure);
     }
 
     //closing file
@@ -577,6 +580,7 @@ void read_file()
     {
         if(node.direct_pointer[i]!=-1)
         {
+            cout<<node.direct_pointer[i];
             char buffer[Block_size]={0};
             long long int offset=node.direct_pointer[i] * Block_size;
             pread(fd,buffer,sizeof(buffer),offset);
@@ -610,6 +614,7 @@ void write_file()
     {
         if(node.direct_pointer[i]!=-1)
         {
+            //cout<<node.direct_pointer[i]<<endl;
             free_blocks.push(node.direct_pointer[i]);
             super.free_db[node.direct_pointer[i]]=0;
             node.direct_pointer[i]=-1;
@@ -679,8 +684,9 @@ void write_content(long long int offset, string content)
 
     strcpy(buffer,content.c_str());
     buffer[content.length()]='\0';
-    cout<<buffer;
-    pwrite(fd,buffer,strlen(buffer),offset);
+    //cout<<buffer;
+    int n=pwrite(fd,buffer,strlen(buffer),offset);
+    //cout<<n;
     return;
 }
 
