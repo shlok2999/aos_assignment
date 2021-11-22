@@ -22,7 +22,9 @@ class inode_structure
     inode_structure()
     {
         file_size=0;
-        memset(direct_pointer,-1,sizeof(direct_pointer));
+        //memset(direct_pointer,-1,sizeof(direct_pointer));
+        for(int i=0;i<10;i++)
+            direct_pointer[i]=-1;
         // for(int &i:direct_pointer)
         //     i=-1;
         s_indirect_pointer=-1;
@@ -33,13 +35,13 @@ class inode_structure
 class file_inode
 {
     public:
-    char *name;
+    char name[100];
     int inode;
     file_inode()
     {
-        name=new char[FILENAME_MAX];
+        //name=new char[FILENAME_MAX];
         //memset(name,'\0',sizeof(name));
-        strcpy(name,"");
+        //strcpy(name,"");
         inode=-1;
     }
 };
@@ -58,7 +60,7 @@ class super_block
     {
         no_of_sup_block=ceil(sizeof(super_block)/Block_size);
         
-        no_of_bitmap_block=ceil((no_of_inode*4100)/Block_size);
+        no_of_bitmap_block=ceil((no_of_inode*sizeof(file_inode))/Block_size);
         no_of_inode_block=ceil((no_of_inode*sizeof(inode_structure))/Block_size);
         no_of_data_block=no_of_data_block - no_of_inode_block - no_of_sup_block - no_of_bitmap_block;
         
