@@ -136,7 +136,7 @@ int main()
 void create_disk()
 {
     cout<<"Enter the file name:"<<endl;
-    char disk_name[FILENAME_MAX];
+    char disk_name[100];
     //cout<<"Enter the file name:"<<endl;
     cin>>disk_name;
     cin.clear();
@@ -149,9 +149,10 @@ void create_disk()
         return;
     }
 
-    FILE *disk=fopen(disk_name,"wb");
+    // FILE *disk=fopen(disk_name,"wb");
+    int f=open(disk_name,O_WRONLY | O_CREAT,S_IRUSR| S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH);
     //fclose(disk);
-    if(disk == NULL)
+    if(f<-1)
     {
         cout<<"Unable to open file";
         return;
@@ -162,34 +163,39 @@ void create_disk()
     // for(int i=0;i<no_of_blocks;i++)
     //     fwrite(buff,Block_size,1,disk);
 
-    fseek(disk,no_of_blocks * Block_size,SEEK_SET);
-    fwrite(" ",1,1,disk);
+    pwrite(f," ",1,no_of_blocks * Block_size-1);
     
     super_block meta;
     //cout<<no_of_inode;
-    file_inode f[no_of_inode];
-    inode_structure i[no_of_inode];
+    file_inode fi[no_of_inode];
+    inode_structure in[no_of_inode];
 
-    for(int i=0;i<no_of_inode;i++)
-        cout<<f[i].inode<<" "<<f[i].name<<endl;
-
-
-    fseek(disk,0,SEEK_SET);
-    fwrite(&meta,sizeof(meta),1,disk);
-
+    pwrite(f, (char*)&meta, sizeof(super_block), 0);
     // Writing files' meta in disk 
     long long int offset = (meta.no_of_sup_block) *Block_size ;
-    fseek(disk,offset,SEEK_SET);
-    fwrite(f,sizeof(file_inode),no_of_inode,disk);
-    cout<<offset<<endl;
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(files,sizeof(file_inode),no_of_inode,disk);
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pwrite(f, (char*)&fi[i], sizeof(file_inode), offset);
+        offset+=Block_size;
+    }
+
     //Writing inodes of the file in the disk
-    offset = (meta.no_of_sup_block + meta.no_of_bitmap_block) *Block_size ;
-    cout<<offset<<endl;
-    fseek(disk,offset,SEEK_SET);
-    fwrite(i,sizeof(inode_structure),no_of_inode,disk);
+    // offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pwrite(f, (char*)&in[i], sizeof(inode_structure), offset);
+        offset+=Block_size;
+    }
 
     //closing file
-    fclose(disk);
+    // fclose(disk);
+    close(f);
+
     cout<<"Disk Created succesfully"<<endl;
 }
 
@@ -238,32 +244,52 @@ void load_disk(char *disk_name)
 {
     // Reading file to main memory
     cout<<disk_name<<endl;
-    FILE *disk=fopen( disk_name, "rb+");
-    if(disk == NULL)
+    fd=open(disk_name,O_RDWR);
+    if(fd<0)
     {
-        cout<<"Unable to open file"<<endl;
-        exit(0);
+        cout<<"Unable to mount file";
+        return;
     }
-
-    fread(&super,sizeof(super_block),1,disk);
+    memset((char*)&super, 0, sizeof(super_block));
+    pread(fd, (char*)&super, sizeof(super_block), 0);
     cout<<"Super block Read"<<endl;
 
-    // files=new file_inode[no_of_inode];
-    cout<<"New file array is created"<<endl;
     long long int offset = (super.no_of_sup_block) *Block_size ;
-    cout<<"Offset Calcultaed"<<endl;
-    fseek(disk,offset,SEEK_SET);
-    cout<<"File pointer is set"<<endl;
-    fread(files,sizeof(file_inode),no_of_inode,disk);
-    cout<<"Files data is read"<<endl;
-    //inode=new inode_structure[no_of_inode]; 
-    offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
-    cout<<"Offset calculated again"<<endl;
-    fseek(disk,offset,SEEK_SET);
-    cout<<"File pointer is set again to correct place"<<endl;
-    fread(inode,sizeof(inode_structure),no_of_inode,disk);
-    cout<<"Inode is updated successfully"<<endl;
-    fclose(disk);
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(files,sizeof(file_inode),no_of_inode,disk);
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pread(fd, (char*)&files[i], sizeof(file_inode), offset);
+        offset+=Block_size;
+    }
+
+    //Writing inodes of the file in the disk
+    // offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pread(fd, (char*)&inode[i], sizeof(inode_structure), offset);
+        offset+=Block_size;
+    }
+
+    // // files=new file_inode[no_of_inode];
+    // cout<<"New file array is created"<<endl;
+    // long long int offset = (super.no_of_sup_block) *Block_size ;
+    // cout<<"Offset Calcultaed"<<endl;
+    // fseek(disk,offset,SEEK_SET);
+    // cout<<"File pointer is set"<<endl;
+    // fread(files,sizeof(file_inode),no_of_inode,disk);
+    // cout<<"Files data is read"<<endl;
+    // //inode=new inode_structure[no_of_inode]; 
+    // offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    // cout<<"Offset calculated again"<<endl;
+    // fseek(disk,offset,SEEK_SET);
+    // cout<<"File pointer is set again to correct place"<<endl;
+    // fread(inode,sizeof(inode_structure),no_of_inode,disk);
+    // cout<<"Inode is updated successfully"<<endl;
+    // fclose(disk);
 
     cout<<"File is closed"<<endl;
     for(int i=0;i<no_of_inode;i++)
@@ -293,30 +319,42 @@ void load_disk(char *disk_name)
 
 void unload_disk()
 {
-    FILE *disk=fopen( name, "rb+");
+    // FILE *disk=fopen( name, "rb+");
 
-    if(disk == NULL)
-    {
-        cout<<"Unable to modify disk....exiting";
-        exit(0);
-    }
+    // if(disk == NULL)
+    // {
+    //     cout<<"Unable to modify disk....exiting";
+    //     exit(0);
+    // }
 
-    //Writing superblock
-    fseek(disk,0,SEEK_SET);
-    fwrite(&super,sizeof(super_block),1,disk);
-
+    // //Writing superblock
+    // fseek(disk,0,SEEK_SET);
+    // fwrite(&super,sizeof(super_block),1,disk);
+    pwrite(fd, (char*)&super, sizeof(super_block), 0);
     // Writing files' meta in disk 
     long long int offset = (super.no_of_sup_block) *Block_size ;
-    fseek(disk,offset,SEEK_SET);
-    fwrite(files,sizeof(file_inode),no_of_inode,disk);
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(files,sizeof(file_inode),no_of_inode,disk);
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pwrite(fd, (char*)&files[i], sizeof(file_inode), offset);
+        offset+=Block_size;
+    }
 
     //Writing inodes of the file in the disk
-    offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
-    fseek(disk,offset,SEEK_SET);
-    fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+    // offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pwrite(fd, (char*)&inode[i], sizeof(inode_structure), offset);
+        offset+=Block_size;
+    }
 
     //closing file
-    fclose(disk);
+    // fclose(disk);
+    close(fd);
 
     while(!free_blocks.empty())
         free_blocks.pop();
@@ -335,14 +373,6 @@ void unload_disk()
 
 void mount_disk_menu()
 {
-    fd=open(name,O_RDWR);
-    if(fd<0)
-    {
-        cout<<"Unable to mount file";
-        return;
-    }
-
-
     while(1)
     {
         int op=display_mount_menu();
@@ -397,7 +427,7 @@ void mount_disk_menu()
         }
     }
 
-    close(fd);
+    
 }
 
 ///////////////////////////////////////// Dsiplay Mount Menu //////////////////////////////////////
@@ -574,7 +604,7 @@ void write_file()
         cout<<"File doesnot have read operations"<<endl;
         return;
     }
-    inode_structure &node=inode[file];
+    inode_structure node=inode[file];
 
     for(int i=0;i<10;i++)
     {
@@ -609,11 +639,11 @@ void write_file()
         free_blocks.pop();
         super.free_db[block_no]=1;
         long long int offset=block_no * Block_size;
-        if(content.size()<Block_size)
+        if(content.length()<Block_size)
         {
             node.direct_pointer[j]=block_no;
             j++;
-            node.file_size+=content.size();
+            node.file_size+=content.length();
             write_content(offset,content);
             content="";
         }
@@ -635,6 +665,7 @@ void write_file()
     {
         cout<<"Written to file successfully"<<endl;
     }
+    inode[file]=node;
 
     return;
 }
