@@ -124,8 +124,10 @@ int main()
             create_disk();
         else if(op == 2 )
             mount_disk();
-        else
+        else if(op == 3)
             break;
+        else
+            cout<<"Wrong Option selected"<<endl;
     }
 }
 
@@ -196,9 +198,9 @@ int display_menu()
 {
     int option;
     cout<<"----------------------"<<endl;
-    cout<<"1. Open Disk"<<endl;
+    cout<<"1. Create Disk"<<endl;
     cout<<"2. Mount Disk"<<endl;
-    cout<<" Exit"<<endl;
+    cout<<"3. Exit"<<endl;
     cout<<"Please enter interger option for exit type any num:";
     cin>>option;
     return option;
@@ -395,7 +397,7 @@ void mount_disk_menu()
 int display_mount_menu()
 {
     int op;
-    cout<<"--------------------------";
+    cout<<"--------------------------"<<endl;
     cout<<"1. Create File"<<endl;
     cout<<"2. Open File"<<endl;
     cout<<"3. Read File"<<endl;
@@ -442,7 +444,7 @@ void create_file()
 
     file_to_inode[fn]=node;
     inode_to_file[node]=fn;
-    cout<<"File created successfully.";
+    cout<<"File created successfully."<<endl;
     return;
 
 }
@@ -452,7 +454,7 @@ void create_file()
 void open_file()
 {
     string filename;
-    cout<<"Enter the filename to be created :"<<endl;
+    cout<<"Enter the filename to be opened :"<<endl;
     getline(cin >> ws,filename);
     
     if(file_to_inode.find(filename)==file_to_inode.end())
@@ -477,20 +479,20 @@ void open_file()
         cout<<"Enter the option:"<<endl;
         cin>>op;
 
-        if(op==1)
+        if(op==0)
         {
             opened_files[filename] = {file_to_inode[filename], "read"};
             file_descriptors[file_to_inode[filename]]="read";
             break;
         }
-        else if(op==2)
+        else if(op==1)
         {
             opened_files[filename] = {file_to_inode[filename], "write"};
             file_descriptors[file_to_inode[filename]]="write";
 
             break;
         }
-        else if(op==3)
+        else if(op==2)
         {
             opened_files[filename] = {file_to_inode[filename], "append"};
             file_descriptors[file_to_inode[filename]]="append";
