@@ -7,7 +7,7 @@ using namespace std;
 
 ///////////////////////////////////// Constant Global Variables //////////////////////////////
 const size_t Block_size=4*1000; //4KB size of disk ball
-const size_t no_of_blocks=512*1000/4;
+const size_t no_of_blocks=500*1000/4;
 const size_t no_of_inode=7865;
 ////////////////////////////////// Class Defination //////////////////////////////
 
@@ -548,7 +548,7 @@ void open_file()
     }
     
 
-    cout<<"File opened successfully"<<endl;
+    cout<<"File opened successfully. File:"<<filename<<" \tFd:"<<opened_files[filename].first<<"\tMode: "<<opened_files[filename].second<<endl;
     return ;
 
 }
