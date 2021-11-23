@@ -225,14 +225,14 @@ void mount_disk()
     strcpy(disk_name,disk.c_str());
     //cin.getline(disk_name,FILENAME_MAX);
     strcpy(name,disk_name);
-    cout<<name<<endl;
+    //cout<<name<<endl;
     struct stat st;
     if(stat(disk_name,&st) == -1)
     {
         cout<<"No such disk exist"<<endl;
         return;
     }
-    cout<<"Going to loading disk";
+    //cout<<"Going to loading disk";
     load_disk(disk_name);
     mount_disk_menu();
     unload_disk();
@@ -243,7 +243,7 @@ void mount_disk()
 void load_disk(char *disk_name)
 {
     // Reading file to main memory
-    cout<<disk_name<<endl;
+    //cout<<disk_name<<endl;
     fd=open(disk_name,O_RDWR);
     if(fd<0)
     {
@@ -252,7 +252,7 @@ void load_disk(char *disk_name)
     }
     memset((char*)&super, 0, sizeof(super_block));
     pread(fd, (char*)&super, sizeof(super_block), 0);
-    cout<<"Super block Read"<<endl;
+    //cout<<"Super block Read"<<endl;
 
     long long int offset = (super.no_of_sup_block) *Block_size ;
     // fseek(disk,offset,SEEK_SET);
@@ -291,19 +291,19 @@ void load_disk(char *disk_name)
     // cout<<"Inode is updated successfully"<<endl;
     // fclose(disk);
 
-    cout<<"File is closed"<<endl;
+    //cout<<"File is closed"<<endl;
     for(int i=0;i<no_of_inode;i++)
     {
-        cout<<i<<" "<<files[i].inode<<" "<<files[i].name<<endl;
+        //cout<<i<<" "<<files[i].inode<<" "<<files[i].name<<endl;
         if(files[i].inode !=-1)
         {
-            cout<<files[i].name<<endl;
+            //cout<<files[i].name<<endl;
             string filename(files[i].name);
             file_to_inode[filename]=files[i].inode;
             inode_to_file[files[i].inode]=filename;
         }
     }
-    cout<<"Maps is initialized"<<endl;
+    //cout<<"Maps is initialized"<<endl;
     // Making bitmap
     for(int i=0;i<no_of_inode;i++)
         if(!super.free_inode[i])
@@ -312,7 +312,7 @@ void load_disk(char *disk_name)
     for(int i=0;i<no_of_blocks;i++)
         if(!super.free_db[i])
         {
-            cout<<i<<endl;
+            //cout<<i<<endl;
             free_blocks.push(i);
         }
 
@@ -574,13 +574,14 @@ void read_file()
     }
 
     inode_structure node=inode[file];
+    cout<<"Content of File is: "<<endl;
     if(node.file_size==0)
         return;
     for(int i=0;i<10;i++)
     {
         if(node.direct_pointer[i]!=-1)
         {
-            cout<<node.direct_pointer[i];
+            //cout<<node.direct_pointer[i];
             char buffer[Block_size]={0};
             long long int offset=node.direct_pointer[i] * Block_size;
             pread(fd,buffer,sizeof(buffer),offset);
@@ -622,7 +623,7 @@ void write_file()
             
         }
     }
-
+    cout<<"Type content of file:"<<endl;
     node.file_size=0;
     string content="";
     bool flag=false;
@@ -745,6 +746,7 @@ void append_file()
         }
     }
 
+    cout<<"Type content of file to be appended"<<endl;
     bool flag=false;
     while(1)
     {
@@ -822,7 +824,7 @@ void close_file()
 void delete_file()
 {
     string filename;
-    cout<<"Enter the filename";
+    cout<<"Enter the filename:"<<endl;
     getline(cin >> ws,filename);
 
     if(opened_files.find(filename)!=opened_files.end())
@@ -863,6 +865,8 @@ void delete_file()
 
 void list_of_files()
 {
+    cout<<"List of files:"<<endl;
+
     for(auto i=file_to_inode.begin(); i!=file_to_inode.end() ; i++)
     {
         cout<<i->first<<"\t, node number:"<<i->second<<endl;
@@ -875,6 +879,7 @@ void list_of_files()
 
 void list_of_open_files()
 {
+    cout<<"List of open files:"<<endl;
     for(auto i=opened_files.begin(); i!=opened_files.end();i++)
     {
         cout<<i->first<<"\t, file descriptor:"<<i->second.first<<"\t, mode:"<<i->second.second<<endl;
