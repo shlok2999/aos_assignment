@@ -40,8 +40,8 @@ class file_inode
     file_inode()
     {
         //name=new char[FILENAME_MAX];
-        //memset(name,'\0',sizeof(name));
-        strcpy(name,"");
+        memset(name,'\0',sizeof(name));
+        //strcpy(name,"");
         inode=-1;
     }
 };
@@ -72,7 +72,7 @@ class super_block
 
         int n=no_of_sup_block + no_of_bitmap_block + no_of_inode_block;
         //cout<<n<<" "<<no_of_blocks<<" ";
-        for(int i=0;i<n;i++)
+        for(int i=0;i<=n;i++)
             free_db[i]=1;
     }
 
@@ -136,9 +136,10 @@ int main()
 void create_disk()
 {
     cout<<"Enter the file name:"<<endl;
-    char disk_name[FILENAME_MAX];
+    char disk_name[100];
     //cout<<"Enter the file name:"<<endl;
     cin>>disk_name;
+    cin.clear();
     //cout<<disk_name<<endl;
 
     struct stat st;
@@ -148,9 +149,10 @@ void create_disk()
         return;
     }
 
-    FILE *disk=fopen(disk_name,"wb");
+    // FILE *disk=fopen(disk_name,"wb");
+    int f=open(disk_name,O_WRONLY | O_CREAT,S_IRUSR| S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH);
     //fclose(disk);
-    if(disk == NULL)
+    if(f<-1)
     {
         cout<<"Unable to open file";
         return;
@@ -161,34 +163,39 @@ void create_disk()
     // for(int i=0;i<no_of_blocks;i++)
     //     fwrite(buff,Block_size,1,disk);
 
-    fseek(disk,no_of_blocks * Block_size,SEEK_SET);
-    fwrite(" ",1,1,disk);
+    pwrite(f," ",1,no_of_blocks * Block_size-1);
     
     super_block meta;
     //cout<<no_of_inode;
-    file_inode f[no_of_inode];
-    inode_structure i[no_of_inode];
+    file_inode fi[no_of_inode];
+    inode_structure in[no_of_inode];
 
-    for(int i=0;i<no_of_inode;i++)
-        cout<<f[i].inode<<" "<<f[i].name<<endl;
-
-
-    fseek(disk,0,SEEK_SET);
-    fwrite(&meta,sizeof(meta),1,disk);
-
+    pwrite(f, (char*)&meta, sizeof(super_block), 0);
     // Writing files' meta in disk 
     long long int offset = (meta.no_of_sup_block) *Block_size ;
-    fseek(disk,offset,SEEK_SET);
-    fwrite(f,sizeof(file_inode),no_of_inode,disk);
-    cout<<offset<<endl;
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(files,sizeof(file_inode),no_of_inode,disk);
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pwrite(f, (char*)&fi[i], sizeof(file_inode), offset);
+        offset+=sizeof(file_inode);
+    }
+
     //Writing inodes of the file in the disk
-    offset = (meta.no_of_sup_block + meta.no_of_bitmap_block) *Block_size ;
-    cout<<offset<<endl;
-    fseek(disk,offset,SEEK_SET);
-    fwrite(i,sizeof(inode_structure),no_of_inode,disk);
+    offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pwrite(f, (char*)&in[i], sizeof(inode_structure), offset);
+        offset+=sizeof(inode_structure);
+    }
 
     //closing file
-    fclose(disk);
+    // fclose(disk);
+    close(f);
+
     cout<<"Disk Created succesfully"<<endl;
 }
 
@@ -203,6 +210,7 @@ int display_menu()
     cout<<"3. Exit"<<endl;
     cout<<"Please enter interger option for exit type any num:";
     cin>>option;
+    cin.clear();
     return option;
 }
 
@@ -236,32 +244,52 @@ void load_disk(char *disk_name)
 {
     // Reading file to main memory
     cout<<disk_name<<endl;
-    FILE *disk=fopen( disk_name, "rb+");
-    if(disk == NULL)
+    fd=open(disk_name,O_RDWR);
+    if(fd<0)
     {
-        cout<<"Unable to open file"<<endl;
-        exit(0);
+        cout<<"Unable to mount file";
+        return;
     }
-
-    fread(&super,sizeof(super_block),1,disk);
+    memset((char*)&super, 0, sizeof(super_block));
+    pread(fd, (char*)&super, sizeof(super_block), 0);
     cout<<"Super block Read"<<endl;
 
-    // files=new file_inode[no_of_inode];
-    cout<<"New file array is created"<<endl;
     long long int offset = (super.no_of_sup_block) *Block_size ;
-    cout<<"Offset Calcultaed"<<endl;
-    fseek(disk,offset,SEEK_SET);
-    cout<<"File pointer is set"<<endl;
-    fread(files,sizeof(file_inode),no_of_inode,disk);
-    cout<<"Files data is read"<<endl;
-    //inode=new inode_structure[no_of_inode]; 
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(files,sizeof(file_inode),no_of_inode,disk);
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pread(fd, (char*)&files[i], sizeof(file_inode), offset);
+        offset+=sizeof(file_inode);
+    }
+
+    //Writing inodes of the file in the disk
     offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
-    cout<<"Offset calculated again"<<endl;
-    fseek(disk,offset,SEEK_SET);
-    cout<<"File pointer is set again to correct place"<<endl;
-    fread(inode,sizeof(inode_structure),no_of_inode,disk);
-    cout<<"Inode is updated successfully"<<endl;
-    fclose(disk);
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pread(fd, (char*)&inode[i], sizeof(inode_structure), offset);
+        offset+=sizeof(inode_structure);
+    }
+
+    // // files=new file_inode[no_of_inode];
+    // cout<<"New file array is created"<<endl;
+    // long long int offset = (super.no_of_sup_block) *Block_size ;
+    // cout<<"Offset Calcultaed"<<endl;
+    // fseek(disk,offset,SEEK_SET);
+    // cout<<"File pointer is set"<<endl;
+    // fread(files,sizeof(file_inode),no_of_inode,disk);
+    // cout<<"Files data is read"<<endl;
+    // //inode=new inode_structure[no_of_inode]; 
+    // offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
+    // cout<<"Offset calculated again"<<endl;
+    // fseek(disk,offset,SEEK_SET);
+    // cout<<"File pointer is set again to correct place"<<endl;
+    // fread(inode,sizeof(inode_structure),no_of_inode,disk);
+    // cout<<"Inode is updated successfully"<<endl;
+    // fclose(disk);
 
     cout<<"File is closed"<<endl;
     for(int i=0;i<no_of_inode;i++)
@@ -283,7 +311,10 @@ void load_disk(char *disk_name)
     
     for(int i=0;i<no_of_blocks;i++)
         if(!super.free_db[i])
+        {
+            cout<<i<<endl;
             free_blocks.push(i);
+        }
 
 }
 
@@ -291,30 +322,42 @@ void load_disk(char *disk_name)
 
 void unload_disk()
 {
-    FILE *disk=fopen( name, "rb+");
+    // FILE *disk=fopen( name, "rb+");
 
-    if(disk == NULL)
-    {
-        cout<<"Unable to modify disk....exiting";
-        exit(0);
-    }
+    // if(disk == NULL)
+    // {
+    //     cout<<"Unable to modify disk....exiting";
+    //     exit(0);
+    // }
 
-    //Writing superblock
-    fseek(disk,0,SEEK_SET);
-    fwrite(&super,sizeof(super_block),1,disk);
-
+    // //Writing superblock
+    // fseek(disk,0,SEEK_SET);
+    // fwrite(&super,sizeof(super_block),1,disk);
+    pwrite(fd, (char*)&super, sizeof(super_block), 0);
     // Writing files' meta in disk 
     long long int offset = (super.no_of_sup_block) *Block_size ;
-    fseek(disk,offset,SEEK_SET);
-    fwrite(files,sizeof(file_inode),no_of_inode,disk);
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(files,sizeof(file_inode),no_of_inode,disk);
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pwrite(fd, (char*)&files[i], sizeof(file_inode), offset);
+        offset+=sizeof(file_inode);
+    }
 
     //Writing inodes of the file in the disk
     offset = (super.no_of_sup_block + super.no_of_bitmap_block) *Block_size ;
-    fseek(disk,offset,SEEK_SET);
-    fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+    // fseek(disk,offset,SEEK_SET);
+    // fwrite(inode,sizeof(inode_structure),no_of_inode,disk);
+
+    for(int i=0;i<no_of_inode;i++)
+    {
+        pwrite(fd, (char*)&inode[i], sizeof(inode_structure), offset);
+        offset+=sizeof(inode_structure);
+    }
 
     //closing file
-    fclose(disk);
+    // fclose(disk);
+    close(fd);
 
     while(!free_blocks.empty())
         free_blocks.pop();
@@ -333,14 +376,6 @@ void unload_disk()
 
 void mount_disk_menu()
 {
-    fd=open(name,O_RDWR);
-    if(fd<0)
-    {
-        cout<<"Unable to mount file";
-        return;
-    }
-
-
     while(1)
     {
         int op=display_mount_menu();
@@ -382,6 +417,11 @@ void mount_disk_menu()
         }
         else if(op == 10)
         {
+            if(!opened_files.empty())
+            {
+                cout<<"Close all files first"<<endl;
+                continue;
+            }
             return;
         }
         else
@@ -390,7 +430,7 @@ void mount_disk_menu()
         }
     }
 
-    close(fd);
+    
 }
 
 ///////////////////////////////////////// Dsiplay Mount Menu //////////////////////////////////////
@@ -411,6 +451,7 @@ int display_mount_menu()
     cout<<"10. Unmount Disk"<<endl;
     cout<<"Enter Your Choice"<<endl;
     cin>>op;
+    cin.clear();
     return op;
 }
 
@@ -424,9 +465,10 @@ void create_file()
         cout<<"Cannot create more file files in this disk"<<endl;
         return;
     }
-    char file_name[FILENAME_MAX];
+    char file_name[100];
     cout<<"Enter the name of file you want to create: "<<endl;
     cin>>file_name;
+    cin.clear();
     string fn(file_name);
 
     if(file_to_inode.find(fn)!=file_to_inode.end())
@@ -479,7 +521,7 @@ void open_file()
         cout<<"2. Append Mode"<<endl;
         cout<<"Enter the option:"<<endl;
         cin>>op;
-
+        cin.clear();
         if(op==0)
         {
             opened_files[filename] = {file_to_inode[filename], "read"};
@@ -518,6 +560,7 @@ void read_file()
     int file;
     cout<<"Enter the file descriptor:"<<endl;
     cin>>file;
+    cin.clear();
     if(file_descriptors.find(file)==file_descriptors.end())
     {
         cout<<"Invalid File Descriptor"<<endl;
@@ -537,12 +580,14 @@ void read_file()
     {
         if(node.direct_pointer[i]!=-1)
         {
+            cout<<node.direct_pointer[i];
             char buffer[Block_size]={0};
             long long int offset=node.direct_pointer[i] * Block_size;
             pread(fd,buffer,sizeof(buffer),offset);
             cout<<buffer;
         }
     }
+    cout<<endl;
 }
 
 ///////////////////////////////////// Write File //////////////////////////////////////////////////////
@@ -552,6 +597,7 @@ void write_file()
     int file;
     cout<<"Enter the file descriptor:"<<endl;
     cin>>file;
+    cin.clear();
     if(file_descriptors.find(file)==file_descriptors.end())
     {
         cout<<"Invalid File Descriptor"<<endl;
@@ -560,15 +606,16 @@ void write_file()
 
     if(file_descriptors[file]!= "write")
     {
-        cout<<"File doesnot have read operations"<<endl;
+        cout<<"File doesnot have write operations"<<endl;
         return;
     }
-    inode_structure &node=inode[file];
+    inode_structure node=inode[file];
 
     for(int i=0;i<10;i++)
     {
         if(node.direct_pointer[i]!=-1)
         {
+            //cout<<node.direct_pointer[i]<<endl;
             free_blocks.push(node.direct_pointer[i]);
             super.free_db[node.direct_pointer[i]]=0;
             node.direct_pointer[i]=-1;
@@ -598,11 +645,11 @@ void write_file()
         free_blocks.pop();
         super.free_db[block_no]=1;
         long long int offset=block_no * Block_size;
-        if(content.size()<Block_size)
+        if(content.length()<Block_size)
         {
             node.direct_pointer[j]=block_no;
             j++;
-            node.file_size+=content.size();
+            node.file_size+=content.length();
             write_content(offset,content);
             content="";
         }
@@ -624,6 +671,7 @@ void write_file()
     {
         cout<<"Written to file successfully"<<endl;
     }
+    inode[file]=node;
 
     return;
 }
@@ -636,8 +684,10 @@ void write_content(long long int offset, string content)
     pwrite(fd,buffer,Block_size,offset);
 
     strcpy(buffer,content.c_str());
-
-    pwrite(fd,buffer,strlen(buffer),offset);
+    buffer[content.length()]='\0';
+    //cout<<buffer;
+    int n=pwrite(fd,buffer,strlen(buffer),offset);
+    //cout<<n;
     return;
 }
 
@@ -648,15 +698,16 @@ void append_file()
     int file;
     cout<<"Enter the file descriptor:"<<endl;
     cin>>file;
+    cin.clear();
     if(file_descriptors.find(file)==file_descriptors.end())
     {
         cout<<"Invalid File Descriptor"<<endl;
         return;
     }
 
-    if(file_descriptors[file]!= "write")
+    if(file_descriptors[file]!= "append")
     {
-        cout<<"File doesnot have read operations"<<endl;
+        cout<<"File doesnot have append operations"<<endl;
         return;
     }
     inode_structure &node=inode[file];
@@ -667,25 +718,31 @@ void append_file()
         if(node.direct_pointer[i]==-1)
             break;
     }
+
+    string content="";
     i--;
     if(i==-1)
+    {    
         i=0;
+    }
     
-
-    char buffer[Block_size]={0};
-    long long int offset=node.direct_pointer[i] * Block_size;
-    pread(fd,buffer,sizeof(buffer),offset);
-
-    string orig(buffer);
-    string content="";
-
-    if(orig.size()==Block_size)
-        i++;
     else
     {
-        content=orig;
-        free_blocks.push(node.direct_pointer[i]);
-        super.free_db[node.direct_pointer[i]]=0;
+        char buffer[Block_size]={0};
+        long long int offset=node.direct_pointer[i] * Block_size;
+        pread(fd,buffer,sizeof(buffer),offset);
+
+        string orig(buffer);
+    
+
+        if(orig.size()==Block_size)
+            i++;
+        else
+        {
+            content=orig;
+            free_blocks.push(node.direct_pointer[i]);
+            super.free_db[node.direct_pointer[i]]=0;
+        }
     }
 
     bool flag=false;
@@ -745,6 +802,7 @@ void close_file()
     int file;
     cout<<"Enter the file descriptor:"<<endl;
     cin>>file;
+    cin.clear();
     if(file_descriptors.find(file)==file_descriptors.end())
     {
         cout<<"Invalid File Descriptor"<<endl;
@@ -787,7 +845,14 @@ void delete_file()
     inode[node].file_size=0;
 
     for(int i=0;i<10;i++)
-        inode[node].direct_pointer[i]=-1;
+    {
+        if(inode[node].direct_pointer[i]!=-1)
+        {
+            free_blocks.push(inode[node].direct_pointer[i]);
+            super.free_db[inode[node].direct_pointer[i]]=0;
+            inode[node].direct_pointer[i]=-1;
+        }
+    }
 
     file_to_inode.erase(filename);
     inode_to_file.erase(node);    
