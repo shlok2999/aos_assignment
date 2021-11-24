@@ -582,7 +582,8 @@ void read_file()
         if(node.direct_pointer[i]!=-1)
         {
             //cout<<node.direct_pointer[i];
-            char buffer[Block_size]={0};
+            char buffer[Block_size];
+            memset(buffer,'\0',sizeof(buffer));
             long long int offset=node.direct_pointer[i] * Block_size;
             pread(fd,buffer,sizeof(buffer),offset);
             cout<<buffer;
@@ -659,8 +660,8 @@ void write_file()
             node.direct_pointer[j]=block_no;
             j++;
             node.file_size+=Block_size;
-            write_content(offset,content.substr(0,Block_size));
-            content=content.substr(Block_size);
+            write_content(offset,content.substr(0,Block_size-1));
+            content=content.substr(Block_size-1);
         }
     }
 
@@ -680,12 +681,13 @@ void write_file()
 
 void write_content(long long int offset, string content)
 {
-    char buffer[Block_size]={0};
+    char buffer[Block_size];
     memset(buffer,'\0',sizeof(buffer));
     pwrite(fd,buffer,Block_size,offset);
 
+    memset(buffer,'\0',sizeof(buffer));
     strcpy(buffer,content.c_str());
-    buffer[content.length()]='\0';
+    //buffer[content.length()]='\0';
     //cout<<buffer;
     int n=pwrite(fd,buffer,strlen(buffer),offset);
     //cout<<n;
@@ -729,7 +731,8 @@ void append_file()
     
     else
     {
-        char buffer[Block_size]={0};
+        char buffer[Block_size];
+        memset(buffer,'\0',sizeof(buffer));
         long long int offset=node.direct_pointer[i] * Block_size;
         pread(fd,buffer,sizeof(buffer),offset);
 
@@ -781,8 +784,8 @@ void append_file()
             node.direct_pointer[i]=block_no;
             i++;
             node.file_size+=Block_size;
-            write_content(offset,content.substr(0,Block_size));
-            content=content.substr(Block_size);
+            write_content(offset,content.substr(0,Block_size-1));
+            content=content.substr(Block_size-1);
         }
     }
 
