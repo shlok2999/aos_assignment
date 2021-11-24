@@ -87,9 +87,10 @@ unordered_map <string,int> file_to_inode;
 unordered_map <int,string> inode_to_file;
 queue <int> free_blocks;
 queue <int> free_inodes;
+unordered_set <int> file_desc;
 int fd;
 unordered_map <string , pair<int,string>> opened_files;
-unordered_map <int,string> file_descriptors;
+unordered_map <int,pair<int,string>> file_descriptors;
 
 
 /////////////////////////////////////////// Function Defination /////////////////////////////////////////////////////////////
@@ -316,6 +317,9 @@ void load_disk(char *disk_name)
             free_blocks.push(i);
         }
 
+    for(int i=99;i>=0;i--)
+        file_desc.insert(i);
+
 }
 
 //////////////////////////////// Unloading Disk /////////////////////////////////////////////////////////
@@ -367,6 +371,7 @@ void unload_disk()
     
     file_to_inode.clear();
     inode_to_file.clear();
+    file_desc.clear();
 
     cout<<"Disk Unmounted Succesfully"<<endl;
 }
@@ -524,21 +529,27 @@ void open_file()
         cin.clear();
         if(op==0)
         {
-            opened_files[filename] = {file_to_inode[filename], "read"};
-            file_descriptors[file_to_inode[filename]]="read";
+            int file_d=*(file_desc.begin());
+            file_desc.erase(file_desc.begin());
+            opened_files[filename] = {file_d, "read"};
+            file_descriptors[file_d]={file_to_inode[filename],"read"};
             break;
         }
         else if(op==1)
         {
-            opened_files[filename] = {file_to_inode[filename], "write"};
-            file_descriptors[file_to_inode[filename]]="write";
+            int file_d=*(file_desc.begin());
+            file_desc.erase(file_desc.begin());
+            opened_files[filename] = {file_d, "write"};
+            file_descriptors[file_d]={file_to_inode[filename],"write"};
 
             break;
         }
         else if(op==2)
         {
-            opened_files[filename] = {file_to_inode[filename], "append"};
-            file_descriptors[file_to_inode[filename]]="append";
+            int file_d=*(file_desc.begin());
+            file_desc.erase(file_desc.begin());
+            opened_files[filename] = {file_d, "append"};
+            file_descriptors[file_d]={file_to_inode[filename],"append"};
             break;
         }
         else
@@ -548,7 +559,7 @@ void open_file()
     }
     
 
-    cout<<"File opened successfully. File:"<<filename<<" \tFd:"<<opened_files[filename].first<<"\tMode: "<<opened_files[filename].second<<endl;
+    cout<<"File opened successfully. File:"<<filename<<" \tFile Descriptor:"<<opened_files[filename].first<<"\tMode: "<<opened_files[filename].second<<endl;
     return ;
 
 }
@@ -567,13 +578,13 @@ void read_file()
         return;
     }
 
-    if(file_descriptors[file]!= "read")
+    if(file_descriptors[file].second!= "read")
     {
         cout<<"File doesnot have read operations"<<endl;
         return;
     }
 
-    inode_structure node=inode[file];
+    inode_structure node=inode[file_descriptors[file].first];
     cout<<"Content of File is: "<<endl;
     if(node.file_size==0)
         return;
@@ -606,12 +617,12 @@ void write_file()
         return;
     }
 
-    if(file_descriptors[file]!= "write")
+    if(file_descriptors[file].second!= "write")
     {
         cout<<"File doesnot have write operations"<<endl;
         return;
     }
-    inode_structure node=inode[file];
+    inode_structure node=inode[file_descriptors[file].first];
 
     for(int i=0;i<10;i++)
     {
@@ -673,7 +684,7 @@ void write_file()
     {
         cout<<"Written to file successfully"<<endl;
     }
-    inode[file]=node;
+    inode[file_descriptors[file].first]=node;
 
     return;
 }
@@ -708,12 +719,12 @@ void append_file()
         return;
     }
 
-    if(file_descriptors[file]!= "append")
+    if(file_descriptors[file].second!= "append")
     {
         cout<<"File doesnot have append operations"<<endl;
         return;
     }
-    inode_structure &node=inode[file];
+    inode_structure &node=inode[file_descriptors[file].first];
     int i=0;
 
     for(;i<10;i++)
@@ -814,8 +825,9 @@ void close_file()
         return;
     }
 
+    opened_files.erase(inode_to_file[file_descriptors[file].first]);
     file_descriptors.erase(file);
-    opened_files.erase(inode_to_file[file]);
+    
 
     cout<<"File closed successfully"<<endl;
 
