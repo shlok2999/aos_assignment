@@ -184,7 +184,7 @@ void * communication(void * arg)
 
             sending(client,s);
 
-            int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=recv(client,buffer,sizeof(buffer),0);
             //cout<<recieve;
             cout<<buffer<<endl;
         }
@@ -194,7 +194,7 @@ void * communication(void * arg)
             s=s+ " " + my_address+ " " + my_port;
             sending(client,s);
         
-            int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=recv(client,buffer,1024,0);
             //cout<<recieve;
             cout<<buffer<<endl;
         }
@@ -202,7 +202,7 @@ void * communication(void * arg)
         {
             sending(client,s);
         
-            int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=recv(client,buffer,1024,0);
             //cout<<recieve;
             cout<<buffer<<endl;
         }
@@ -210,7 +210,7 @@ void * communication(void * arg)
         {
             sending(client,s);
         
-            int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=recv(client,buffer,1024,0);
             //cout<<recieve;
             cout<<buffer<<endl;
         }
@@ -224,7 +224,10 @@ void * communication(void * arg)
 
             int n=getfilesize(tokens[1]);
             if(n==-1)
+            {
+                cout<<"Wrong file uploaded"<<endl;
                 continue;
+            }
             string bitmap=getbitmap(n);
             //string file_name=getfilename(tokens[1]);
 
@@ -236,47 +239,52 @@ void * communication(void * arg)
             s=tokens[0]+" "+file_name+" "+tokens[2]+" "+to_string(n);
             sending(client,s);
 
-            int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=recv(client,buffer,1024,0);
             
              cout<<buffer<<endl;
         }
         else if(tokens[0]=="download_file" && tsize==4)
         {
             string dest=tokens[3]+'/'+tokens[2];
-            
+            char buff[10*1024]={0};
             
             sending(client,s);
-            vector<string> list_of_peers;
+            
 
-            memset(buffer,'\0',sizeof(buffer));
-            int recieve=read(client,buffer,sizeof(buffer));
+            //memset(buff,'\0',sizeof(buff));
+            int recieve=recv(client,buff,10240,0);
             //cout<<buffer<<endl;
-            if(strcmp(buffer,"Accepted")==0)
+            string ms(buff);
+            //cout<<ms;
+            vector<string> list_of_peers=tokenizer(ms);
+            if(list_of_peers[0]=="Accepted")
             {
                 //cout<<buffer<<endl;
-                char users[1000];
-                while(1)
-                {
-                    memset(users,'\0',sizeof(users));
-                    int size=recv(client ,users , sizeof(users),0);
-                    if(strcmp(users,"stop")==0)
-                        break;
-                    string p(users);
-                    list_of_peers.push_back(p);
-                    //cout<<p<<endl;
+                // char users[1000];
+                // while(1)
+                // {
+                //     memset(users,'\0',sizeof(users));
+                //     int size=recv(client ,users , sizeof(users),0);
+                //     if(strcmp(users,"stop")==0)
+                //         break;
+                //     string p(users);
+                //     list_of_peers.push_back(p);
+                //     //cout<<p<<endl;
                 
-                }
-                
+                // }
+                //cout<<"in accepted block"<<endl;
+                list_of_peers.erase(list_of_peers.begin());
                 if(files_shared.find(tokens[2])!=files_shared.end())
                 {
                     cout<<"You already have this file";
                     continue;
                 }
                 files_downloaded* new_d =new files_downloaded(tokens[2],dest,tokens[1]);
-                vector<string> header=tokenizer(list_of_peers[0]);
-                string bitmap=get0bitmap(stoi(header[1]));
+                //vector<string> header=tokenizer(list_of_peers[0]);
+                //cout<<"getting bit map"<<endl;
+                string bitmap=get0bitmap(stoi(list_of_peers[1]));
                 //cout<<"Files data fetched"<<endl;
-                    
+                //cout<<"making object for file";
                 files_shared[tokens[2]]=new files_sharable(tokens[2],dest,bitmap);
 
                 //cout<<"After new"<<endl;
@@ -293,90 +301,114 @@ void * communication(void * arg)
                 pthread_create(&p,NULL,download_file,args);
             }
             else
-                cout<<buffer<<endl;
+                cout<<buff<<endl;
 
 
         }
         else if(tokens[0]=="list_groups")
         {
             sending(client,s);
-            vector<string> log;
-            char groups[125];
-            while(1)
-            {
-                memset(groups,'\0',sizeof(groups));
-                int size=recv(client ,groups , sizeof(groups),0);
-                if(strcmp(groups,"stop")==0)
-                    break;
-                if(size==0)
-                    continue;
-                cout<<groups<<endl;
+            
+            char groups[10*1024];
+            // while(1)
+            // {
+            memset(groups,'\0',sizeof(groups));
+            //     int size=recv(client ,groups , sizeof(groups),0);
+            //     if(strcmp(groups,"stop")==0)
+            //         break;
+            //     if(size==0)
+            //         continue;
+            //     cout<<groups<<endl;
                 
-            }
+            // }
+            int size=recv(client ,groups , 10240,0);
+            if(size<=0)
+                continue;
+            string ms(groups);
+            
+            vector<string> log=tokenizer(ms);
+            if(log[0]=="$")
+                continue;
+            for(string grp:log)
+                cout<<grp<<endl;
         }
         else if(tokens[0]=="create_group" && tsize==2)
         {
             sending(client,s);
-            int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=recv(client,buffer,1024,0);
             //cout<<recieve;
             cout<<buffer<<endl;
         }
         else if(tokens[0]=="stop_share" && tsize==3)
         {
             sending(client,s);
-            int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=recv(client,buffer,1024,0);
             //cout<<recieve;
             cout<<buffer<<endl;
         }
         else if(tsize==3 && tokens[0]=="requests" && tokens[1]=="list_requests")
         {
             sending(client,s);
-            memset(buffer,'\0',sizeof(buffer));
-            int recieve=read(client,buffer,sizeof(buffer));
-            if(strcmp(buffer,"Accepted")==0)
+            char buff[10*1024]={0};
+            //memset(buffer,'\0',sizeof(buffer));
+            int recieve=recv(client,buff,10240,0);
+            string re(buff);
+            vector<string> lor=tokenizer(re);
+            if(lor[0]=="Accepted")
             {
+
+                lor.erase(lor.begin());
+                for(string r:lor)
+                    cout<<r<<endl;
                 //cout<<buffer<<endl;
-                char users[125];
-                while(1)
-                {
-                    memset(users,'\0',sizeof(users));
-                    int size=recv(client ,users , sizeof(users),0);
-                    if(strcmp(users,"stop")==0)
-                        break;
-                    cout<<users<<endl;
+                // char users[125];
+                // // while(1)
+                // // {
+                // //     memset(users,'\0',sizeof(users));
+                // //     int size=recv(client ,users , sizeof(users),0);
+                // //     if(strcmp(users,"stop")==0)
+                // //         break;
+                // //     cout<<users<<endl;
                 
-                }
+                // // }
             }
             else
-                cout<<buffer<<endl;
+                cout<<buff<<endl;
         }
         else if(tokens[0]=="list_files" && tsize==2)
         {
             sending(client,s);
-            memset(buffer,'\0',sizeof(buffer));
-            int recieve=read(client,buffer,sizeof(buffer));
-            if(strcmp(buffer,"Accepted")==0)
+            char buff[10*1024]={0};
+            //memset(buffer,'\0',sizeof(buffer));
+            int recieve=recv(client,buff,10240,0);
+            string re(buff);
+            vector<string> lof=tokenizer(re);
+            if(lof[0]=="Accepted")
             {
+
+                lof.erase(lof.begin());
+                for(string f:lof)
+                    cout<<f<<endl;
                 //cout<<buffer<<endl;
-                char users[125];
-                while(1)
-                {
-                    memset(users,'\0',sizeof(users));
-                    int size=recv(client ,users , sizeof(users),0);
-                    if(strcmp(users,"stop")==0)
-                        break;
-                    cout<<users<<endl;
+                // char users[125];
+                // // while(1)
+                // // {
+                // //     memset(users,'\0',sizeof(users));
+                // //     int size=recv(client ,users , sizeof(users),0);
+                // //     if(strcmp(users,"stop")==0)
+                // //         break;
+                // //     cout<<users<<endl;
                 
-                }
+                // // }
             }
             else
-                cout<<buffer<<endl;   
+                cout<<buff<<endl;  
         }
         else if(tokens[0]=="accept_request" && tsize==3)
         {
             sending(client,s);
             memset(buffer,'\0',sizeof(buffer));
-            int recieve=read(client,buffer,sizeof(buffer));
+            int recieve=recv(client,buffer,1024,0);
             //cout<<recieve;
             cout<<buffer<<endl;
         }
@@ -398,7 +430,7 @@ void * communication(void * arg)
 /////////////////////////////////////////////// Sending a msg function //////////////////////////////////////////////////////
 void sending(int com_soc,string s)
 {
-    char msg[256]={0};
+    char msg[1024]={0};
     strcpy(msg,s.c_str());
     msg[s.length()]='\0';
     int n=send(com_soc , msg , strlen(msg) , 0 );
@@ -505,12 +537,16 @@ void * download_file(void *arg)
     vector<string> peers=args.peers;
     // cout<<"retrieveing data"<<endl;
     //string username=args.username;
-    vector<string> header=tokenizer(peers[0]);
+    vector<string> header;
+    header.push_back(peers[0]);
+    header.push_back(peers[1]);
     // cout<<"Before erase"<<endl;
     // for(string s:peers)
     //     cout<<s<<endl;
     
     peers.erase(peers.begin());
+    peers.erase(peers.begin());
+    
     // cout<<"After erase:"<<endl;
     // for(string s:peers)
     //     cout<<s<<endl;

@@ -242,11 +242,11 @@ vector<string> tokenizer(string command);
 char * create_group(string username,string group_id);
 char * join_group(string username,string grpid);
 char * accept_request(string owner,string group_id,string username);
-char * requests(int com_soc,string owner,string group_id);
+string requests(int com_soc,string owner,string group_id);
 char * leave_group(string username,string group_id);
-char * list_files(int com_soc,string username,string group_id);
+string list_files(int com_soc,string username,string group_id);
 char * upload_file(int com_soc,string username,string filename,string group_id,string chunk_no);
-char * download_file(int com_soc,string username,string group_id,string filename);
+string download_file(int com_soc,string username,string group_id,string filename);
 char * stop_share(string username,string group_id,string filename);
 void logout(string username);
 string getip(const char* file,const char* no);
@@ -480,22 +480,43 @@ void * communication(void *connection)
         else if(tokens[0]=="list_groups")
         {
             //code here
-            char temp[20];
+            char temp[10*1024]={0};
+            string s="";
             for(auto i=groups.begin();i!=groups.end() ; i++)
             {
-                   
-                memset(temp,'\0',sizeof(temp));
-                strcpy(temp,i->first.c_str());
-                temp[i->first.length()]='\0';
-                send(com_soc , temp , strlen(temp) , 0 );
-                usleep(1);
+                s=s+i->first+" ";
+                // memset(temp,'\0',sizeof(temp));
+                // strcpy(temp,i->first.c_str());
+                // temp[i->first.length()]='\0';
+                // send(com_soc , temp , strlen(temp) , 0 );
+                // usleep(1);
             }
-            reply="stop\0";
+            if(s.length()==0)
+                reply="$";
+            else
+            {
+                s.pop_back();
+                strcpy(temp,s.c_str());
+                temp[s.length()]='\0';
+                reply=temp;
+            }
+            
         }
         else if(tokens[0]=="list_files")
         {
             //code here
-            reply=list_files(com_soc,username,tokens[1]);
+            char temp[10*1024]={0};
+            string s=list_files(com_soc,username,tokens[1]);
+            if(s.length()==0)
+                reply="$";
+            else
+            {
+                s.pop_back();
+                strcpy(temp,s.c_str());
+                temp[s.length()]='\0';
+                reply=temp;
+            }
+            
         }
         else if(tokens[0]=="upload_file")
         {
@@ -506,7 +527,17 @@ void * communication(void *connection)
         else if(tokens[0]=="download_file")
         {
             //code here
-            reply=download_file(com_soc,username,tokens[1],tokens[2]);
+            char temp[10*1024]={0};
+            string s=download_file(com_soc,username,tokens[1],tokens[2]);
+            if(s.length()==0)
+                reply="$";
+            else
+            {
+                s.pop_back();
+                strcpy(temp,s.c_str());
+                temp[s.length()]='\0';
+                reply=temp;
+            }
         }
         else if(tokens[0]=="accept_request")
         {
@@ -514,7 +545,17 @@ void * communication(void *connection)
         }
         else if(tokens[0]=="requests" && tokens[1]=="list_requests")
         {
-            reply=requests(com_soc,username,tokens[2]);
+            char temp[10*1024]={0};
+            string s=requests(com_soc,username,tokens[2]);
+            if(s.length()==0)
+                reply="$";
+            else
+            {
+                s.pop_back();
+                strcpy(temp,s.c_str());
+                temp[s.length()]='\0';
+                reply=temp;
+            }
         }
         else
         {
@@ -522,6 +563,7 @@ void * communication(void *connection)
         }
         cout<<"Message sent\n";
         send(com_soc , reply , strlen(reply) , 0 );
+        reply="\0";
     }
 }
 /////////////////////////////////////////////// Creating a user id /////////////////////////////////
@@ -620,50 +662,53 @@ char * accept_request(string owner,string group_id,string username)
 }
 
 ///////////////////////////////////////////// Getting the pending list ///////////////////////////////////////
-char * requests(int com_soc,string owner,string group_id)
+string requests(int com_soc,string owner,string group_id)
 {
     if(groups.find(group_id)==groups.end())
-        return "Group Doesn't Exist";
+        return "Group Doesn't Exist ";
     if(groups[group_id]->owner!=owner)
-        return "You are authorized to use this command";  
+        return "You are authorized to use this command ";  
     
-    char temp[20]="Accepted";
     
-    send(com_soc , temp , strlen(temp) , 0 );
-    usleep(2000);
+    string s="Accepted ";
+    // send(com_soc , temp , strlen(temp) , 0 );
+    // usleep(2000);
     for(auto i=groups[group_id]->pending_list.begin();i!=groups[group_id]->pending_list.end() ; i++)
     {
-        memset(temp,'\0',sizeof(temp));
-        strcpy(temp,i->first.c_str());
-        temp[i->first.length()]='\0';
-        send(com_soc , temp , strlen(temp) , 0 );
-        usleep(2000);
+        s=s+i->first+" ";
+        // memset(temp,'\0',sizeof(temp));
+        // strcpy(temp,i->first.c_str());
+        // temp[i->first.length()]='\0';
+        // send(com_soc , temp , strlen(temp) , 0 );
+        // usleep(2000);
     }
-    usleep(2000);
-    return "stop";
+    
+    return s;
 }
 
 ////////////////////////////////////////////// Lists All files ///////////////////////////////////////////////
-char * list_files(int com_soc,string username,string group_id)
+string list_files(int com_soc,string username,string group_id)
 {
     if(groups.find(group_id)==groups.end())
-        return "Group Doesn't Exist";
+        return "Group Doesn't Exist ";
     if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
-        return "You are not part of this group";
-    char temp[20]="Accepted";
+        return "You are not part of this group ";
+    // char temp[20]="Accepted";
     
-    send(com_soc , temp , strlen(temp) , 0 );
-    usleep(2000);
+    // send(com_soc , temp , strlen(temp) , 0 );
+    // usleep(2000);
+    string s="Accepted ";
     for(auto i=groups[group_id]->files.begin();i!=groups[group_id]->files.end() ; i++)
     {
-        memset(temp,'\0',sizeof(temp));
-        strcpy(temp,i->first.c_str());
-        temp[i->first.length()]='\0';
-        send(com_soc , temp , strlen(temp) , 0 );
-        usleep(2000);
+        s=s+i->first+" ";
+        // memset(temp,'\0',sizeof(temp));
+        // strcpy(temp,i->first.c_str());
+        // temp[i->first.length()]='\0';
+        // send(com_soc , temp , strlen(temp) , 0 );
+        // usleep(2000);
     }
-    usleep(2000);
-    return "stop";
+    // usleep(2000);
+    return s;
 }
 
 ///////////////////////////////////////////// Stop Share /////////////////////////////////////////////////////
@@ -766,35 +811,37 @@ char * upload_file(int com_soc,string username,string filename,string group_id,s
 
 //////////////////////////////////////// Download File //////////////////////////////////////////////////
 
-char * download_file(int com_soc,string username,string group_id,string filename)
+string download_file(int com_soc,string username,string group_id,string filename)
 {
     //cout<<"In download_file phase"<<endl;
     if(groups.find(group_id)==groups.end())
-        return "Group Doesn't Exist";
+        return "Group Doesn't Exist ";
     if(groups[group_id]->users.find(username)==groups[group_id]->users.end())
-        return "You are not part of this group";
+        return "You are not part of this group ";
     if(groups[group_id]->files.find(filename)==groups[group_id]->files.end())
-        return "No such file exist";
+        return "No such file exist ";
     //cout<<"Before call"<<endl;
     
-    char temp[1000]="Accepted";
-    //cout<<"Aftercall"<<endl;    
-    send(com_soc , temp , strlen(temp) , 0 );
+    // char temp[1000]="Accepted";
+    // //cout<<"Aftercall"<<endl;    
+    // send(com_soc , temp , strlen(temp) , 0 );
     vector<string> det=groups[group_id]->getfiledetails(filename);
-    usleep(2000);
+    //usleep(2000);
     string header=filename+" "+to_string(groups[group_id]->files[filename]->no_of_chunks);
     det.insert(det.begin(),header);
+    string s="Accepted ";
     for(int i=0;i<det.size();i++)
     {
-        memset(temp,'\0',sizeof(temp));
-        strcpy(temp,det[i].c_str());
-        temp[det[i].length()]='\0';
-        send(com_soc , temp , strlen(temp) , 0 );
-        usleep(20000);
+        s=s+det[i]+" ";
+        // memset(temp,'\0',sizeof(temp));
+        // strcpy(temp,det[i].c_str());
+        // temp[det[i].length()]='\0';
+        // send(com_soc , temp , strlen(temp) , 0 );
+        // usleep(20000);
     }
-    usleep(20000);
+    //usleep(20000);
     upload_file(com_soc,username,filename,group_id,to_string(groups[group_id]->files[filename]->no_of_chunks));
-    return "stop";
+    return s;
 }
 
 
